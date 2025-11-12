@@ -3,6 +3,7 @@ import CheckCredential from '@/components/CheckCredential'
 import LoanApplication from '@/components/LoanApplication'
 import MyLoans from '@/components/MyLoans'
 import Link from 'next/link'
+import UploadDocuments from '@/components/upload-docs'
 
 export default function Home() {
   return (
@@ -30,6 +31,10 @@ export default function Home() {
 
         {/* Loan Application */}
         <LoanApplication />
+
+        <UploadDocuments />
+
+        {/* <ViewDocuments farmerAddress={} /> */}
 
         {/* My Loans */}
         <MyLoans />
