@@ -1,10 +1,196 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import WalletConnect from '@/components/WalletConnect'
-import { useContract, useContractWrite, useContractRead, useAddress } from '@thirdweb-dev/react'
+import { useContract, useContractWrite, useContractRead, useContractEvents, useAddress } from '@thirdweb-dev/react'
 import { CONTRACTS } from '@/lib/contracts'
 import Link from 'next/link'
+
+// ✅ Fixed Type definitions
+interface FarmerDocuments {
+  aadhaarHash: string
+  landDocHash: string
+  incomeProofHash: string
+  uploadedAt: bigint
+  isVerified: boolean
+}
+
+interface CredentialData {
+  isIssued: boolean
+  isRevoked: boolean
+  issuedAt: bigint
+  issuer: string
+}
+
+// ✅ Component to view and verify farmer documents
+function FarmerDocumentsViewer() {
+  const { contract } = useContract(CONTRACTS.KCCLoanManager)
+  const [selectedFarmer, setSelectedFarmer] = useState<string>('')
+  const [farmersList, setFarmersList] = useState<string[]>([])
+  const [verifying, setVerifying] = useState(false)
+
+  // ✅ Listen to DocumentsUploaded events
+  const { data: uploadEvents, isLoading: eventsLoading } = useContractEvents(contract, 'DocumentsUploaded', {
+    queryFilter: {
+      fromBlock: 0,
+    },
+  })
+
+  // ✅ Extract unique farmer addresses from events (fixed typing)
+  useEffect(() => {
+    if (uploadEvents && uploadEvents.length > 0) {
+      const farmers = uploadEvents
+        .map((event) => {
+          // Access the farmer address from event data
+          return (event.data as { farmer: string }).farmer
+        })
+        .filter((address: string, index: number, self: string[]) => self.indexOf(address) === index)
+      setFarmersList(farmers)
+    }
+  }, [uploadEvents])
+
+  // ✅ Fetch document data for selected farmer
+  const { data: documents, refetch: refetchDocs } = useContractRead(contract, 'getFarmerDocuments', [selectedFarmer])
+
+  const { mutateAsync: verifyAndIssue } = useContractWrite(contract, 'verifyDocumentsAndIssueCredential')
+
+  const handleVerifyAndIssue = async () => {
+    if (!selectedFarmer) return
+
+    setVerifying(true)
+    try {
+      await verifyAndIssue({ args: [selectedFarmer] })
+      alert('Documents verified and credential issued successfully!')
+      refetchDocs()
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to verify'
+      alert(`Error: ${errorMessage}`)
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const getIPFSUrl = (hash: string) => `https://ipfs.io/ipfs/${hash}`
+
+  const typedDocuments = documents as FarmerDocuments | undefined
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-xl font-bold mb-4 text-black">Farmer Documents Verification</h2>
+      <p className="text-sm text-gray-600 mb-4">View and verify documents uploaded by farmers</p>
+
+      {eventsLoading ? (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-gray-600">Loading farmers...</p>
+        </div>
+      ) : farmersList.length === 0 ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800 text-sm">📋 No farmers have uploaded documents yet</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Farmer Selection Dropdown */}
+          <div>
+            <label className="block text-sm font-medium mb-2 text-black">Select Farmer ({farmersList.length} total)</label>
+            <select value={selectedFarmer} onChange={(e) => setSelectedFarmer(e.target.value)} className="w-full p-3 border rounded-lg text-black bg-white">
+              <option value="">-- Choose a farmer --</option>
+              {farmersList.map((farmer) => (
+                <option key={farmer} value={farmer}>
+                  {farmer}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Document Details */}
+          {selectedFarmer && typedDocuments && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Farmer Address</p>
+                  <p className="font-mono text-xs text-black break-all">{selectedFarmer}</p>
+                </div>
+                <span className={`text-xs font-semibold px-3 py-1 rounded ${typedDocuments.isVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  {typedDocuments.isVerified ? '✅ Verified' : '⏳ Pending'}
+                </span>
+              </div>
+
+              {typedDocuments.aadhaarHash && typedDocuments.aadhaarHash.length > 0 ? (
+                <>
+                  <div className="space-y-3 mb-4">
+                    {/* Aadhaar Document */}
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-sm font-medium text-black mb-2">📄 Aadhaar Document</p>
+                      <p className="text-xs font-mono text-gray-600 break-all mb-2">{typedDocuments.aadhaarHash}</p>
+                      <a
+                        href={getIPFSUrl(typedDocuments.aadhaarHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                      >
+                        View Document →
+                      </a>
+                    </div>
+
+                    {/* Land Document */}
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-sm font-medium text-black mb-2">📄 Land Ownership Document</p>
+                      <p className="text-xs font-mono text-gray-600 break-all mb-2">{typedDocuments.landDocHash}</p>
+                      <a
+                        href={getIPFSUrl(typedDocuments.landDocHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                      >
+                        View Document →
+                      </a>
+                    </div>
+
+                    {/* Income Proof */}
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-sm font-medium text-black mb-2">📄 Income Certificate</p>
+                      <p className="text-xs font-mono text-gray-600 break-all mb-2">{typedDocuments.incomeProofHash}</p>
+                      <a
+                        href={getIPFSUrl(typedDocuments.incomeProofHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                      >
+                        View Document →
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-gray-600 mb-4 bg-white p-2 rounded">
+                    <p>📅 Uploaded: {new Date(Number(typedDocuments.uploadedAt) * 1000).toLocaleString()}</p>
+                  </div>
+
+                  {/* Verify and Issue Button */}
+                  {!typedDocuments.isVerified && (
+                    <button onClick={handleVerifyAndIssue} disabled={verifying} className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold">
+                      {verifying ? 'Processing...' : '✅ Verify Documents & Issue Credential'}
+                    </button>
+                  )}
+
+                  {typedDocuments.isVerified && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                      <p className="text-green-800 font-medium">✅ Documents verified and credential issued</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <p className="text-gray-600 text-sm text-center">No documents uploaded by this farmer</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function IssuerDashboard() {
   const address = useAddress()
@@ -31,6 +217,8 @@ export default function IssuerDashboard() {
   // Read credential status for checking
   const { data: credentialData, refetch: refetchCredential } = useContractRead(contract, 'farmerCredentials', [checkAddress])
 
+  const typedCredentialData = credentialData as CredentialData | undefined
+
   const handleIssueCredential = async () => {
     if (!farmerAddress) {
       alert('Please enter farmer address')
@@ -42,11 +230,10 @@ export default function IssuerDashboard() {
       await issueCredential({ args: [farmerAddress] })
       alert('Credential issued successfully!')
       setFarmerAddress('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to issue credential'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(null)
     }
@@ -63,11 +250,10 @@ export default function IssuerDashboard() {
       await revokeCredential({ args: [farmerAddress] })
       alert('Credential revoked successfully!')
       setFarmerAddress('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to revoke credential'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(null)
     }
@@ -84,11 +270,10 @@ export default function IssuerDashboard() {
       await setBankOfficer({ args: [bankOfficerAddress] })
       alert('Bank officer set successfully!')
       setBankOfficerAddress('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set bank officer'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(null)
     }
@@ -105,11 +290,10 @@ export default function IssuerDashboard() {
       await setAuditor({ args: [auditorAddress] })
       alert('Auditor set successfully!')
       setAuditorAddress('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set auditor'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(null)
     }
@@ -124,7 +308,7 @@ export default function IssuerDashboard() {
   }
 
   // Check if connected wallet is the issuer
-  const isIssuer = address && currentIssuer && address.toLowerCase() === currentIssuer.toLowerCase()
+  const isIssuer = address && currentIssuer && address.toLowerCase() === (currentIssuer as string).toLowerCase()
 
   if (!address) {
     return (
@@ -142,7 +326,7 @@ export default function IssuerDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-red-50 p-8 rounded-lg shadow-md max-w-md border border-red-200">
-          <div className="text-4xl mb-4 text-black">⚠</div>
+          <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold mb-2 text-red-800">Access Denied</h2>
           <p className="text-gray-700 mb-4">You are not authorized as an issuer. Only the issuer wallet can access this dashboard.</p>
           <Link href="/" className="text-blue-600 hover:underline">
@@ -179,23 +363,26 @@ export default function IssuerDashboard() {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Issuer</p>
-              <p className="text-xs font-mono break-all text-black">{currentIssuer || 'Not set'}</p>
+              <p className="text-xs font-mono break-all text-black">{(currentIssuer as string) || 'Not set'}</p>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Bank Officer</p>
-              <p className="text-xs font-mono break-all text-black">{currentBankOfficer || 'Not set'}</p>
+              <p className="text-xs font-mono break-all text-black">{(currentBankOfficer as string) || 'Not set'}</p>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Auditor</p>
-              <p className="text-xs font-mono break-all text-black">{currentAuditor || 'Not set'}</p>
+              <p className="text-xs font-mono break-all text-black">{(currentAuditor as string) || 'Not set'}</p>
             </div>
           </div>
         </div>
 
+        {/* ✅ Farmer Documents Verification Section */}
+        <FarmerDocumentsViewer />
+
         {/* Credential Management */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4 text-black">Credential Management</h2>
-          <p className="text-sm text-gray-600 mb-4">Issue or revoke farmer credentials to control loan application access</p>
+          <h2 className="text-xl font-bold mb-4 text-black">Manual Credential Management</h2>
+          <p className="text-sm text-gray-600 mb-4">Issue or revoke farmer credentials manually (without document verification)</p>
 
           <div className="space-y-4">
             <div>
@@ -234,19 +421,19 @@ export default function IssuerDashboard() {
               </button>
             </div>
 
-            {credentialData && (
-              <div className={`p-4 rounded-lg border ${credentialData.isIssued && !credentialData.isRevoked ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+            {typedCredentialData && (
+              <div className={`p-4 rounded-lg border ${typedCredentialData.isIssued && !typedCredentialData.isRevoked ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                 <div className="space-y-2 text-sm">
                   <p className="text-black">
-                    <strong>Status:</strong> {credentialData.isIssued ? (credentialData.isRevoked ? 'Revoked' : 'Active') : 'Not Issued'}
+                    <strong>Status:</strong> {typedCredentialData.isIssued ? (typedCredentialData.isRevoked ? 'Revoked' : 'Active') : 'Not Issued'}
                   </p>
-                  {credentialData.isIssued && (
+                  {typedCredentialData.isIssued && (
                     <>
                       <p className="text-black">
-                        <strong>Issued At:</strong> {new Date(Number(credentialData.issuedAt) * 1000).toLocaleString()}
+                        <strong>Issued At:</strong> {new Date(Number(typedCredentialData.issuedAt) * 1000).toLocaleString()}
                       </p>
                       <p className="text-black">
-                        <strong>Issuer:</strong> <span className="font-mono text-xs">{credentialData.issuer}</span>
+                        <strong>Issuer:</strong> <span className="font-mono text-xs">{typedCredentialData.issuer}</span>
                       </p>
                     </>
                   )}
@@ -294,6 +481,7 @@ export default function IssuerDashboard() {
         <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
           <h3 className="font-bold text-blue-900 mb-2">Issuer Responsibilities</h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+            <li>View and verify farmer documents uploaded to IPFS</li>
             <li>Verify farmer documents before issuing credentials</li>
             <li>Issue credentials only to eligible farmers</li>
             <li>Revoke credentials if farmer violates terms</li>
