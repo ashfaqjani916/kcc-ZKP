@@ -37,11 +37,10 @@ contract KCCLoanManager {
         address issuer;
     }
 
-    // ✅ NEW: Document storage struct
     struct FarmerDocuments {
-        string aadhaarHash; // IPFS CID for Aadhaar
-        string landDocHash; // IPFS CID for land ownership
-        string incomeProofHash; // IPFS CID for income certificate
+        string aadhaarHash;
+        string landDocHash;
+        string incomeProofHash;
         uint256 uploadedAt;
         bool isVerified;
     }
@@ -49,9 +48,11 @@ contract KCCLoanManager {
     mapping(address => Credential) public farmerCredentials;
     mapping(uint256 => LoanApplication) public loanApplications;
     mapping(address => uint256[]) public farmerLoans;
-
-    // ✅ NEW: Document storage mapping
     mapping(address => FarmerDocuments) public farmerDocuments;
+
+    // ✅ NEW: Track all farmers who uploaded documents
+    address[] private farmersWithDocuments;
+    mapping(address => bool) private hasFarmerUploaded; // Prevent duplicates
 
     uint256 public loanCounter;
 
@@ -76,8 +77,6 @@ contract KCCLoanManager {
         uint256 amount,
         string billHash
     );
-
-    // ✅ NEW: Document-related events
     event DocumentsUploaded(
         address indexed farmer,
         string aadhaarHash,
@@ -136,7 +135,7 @@ contract KCCLoanManager {
         emit CredentialRevoked(farmer, block.timestamp);
     }
 
-    // ✅ NEW: Upload document hashes to blockchain
+    // ✅ UPDATED: Track farmer in array when uploading
     function uploadDocuments(
         string memory _aadhaarHash,
         string memory _landDocHash,
@@ -157,6 +156,12 @@ contract KCCLoanManager {
             isVerified: false
         });
 
+        // ✅ NEW: Add farmer to array if first time uploading
+        if (!hasFarmerUploaded[msg.sender]) {
+            farmersWithDocuments.push(msg.sender);
+            hasFarmerUploaded[msg.sender] = true;
+        }
+
         emit DocumentsUploaded(
             msg.sender,
             _aadhaarHash,
@@ -166,7 +171,6 @@ contract KCCLoanManager {
         );
     }
 
-    // ✅ NEW: Issuer verifies documents and issues credential in one transaction
     function verifyDocumentsAndIssueCredential(
         address farmer
     ) external onlyIssuer {
@@ -180,10 +184,8 @@ contract KCCLoanManager {
             "Credential already issued"
         );
 
-        // Mark documents as verified
         farmerDocuments[farmer].isVerified = true;
 
-        // Issue credential
         farmerCredentials[farmer] = Credential({
             isIssued: true,
             isRevoked: false,
@@ -195,7 +197,40 @@ contract KCCLoanManager {
         emit CredentialIssued(farmer, msg.sender, block.timestamp);
     }
 
-    // ✅ NEW: Get farmer documents (view function)
+    // ✅ NEW: Get all farmers who uploaded documents
+    function getAllFarmersWithDocuments()
+        external
+        view
+        returns (address[] memory)
+    {
+        return farmersWithDocuments;
+    }
+
+    // ✅ NEW: Get total count of farmers
+    function getFarmersCount() external view returns (uint256) {
+        return farmersWithDocuments.length;
+    }
+
+    // ✅ NEW: Pagination support for large lists
+    function getFarmersPaginated(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory) {
+        require(offset < farmersWithDocuments.length, "Offset out of bounds");
+
+        uint256 end = offset + limit;
+        if (end > farmersWithDocuments.length) {
+            end = farmersWithDocuments.length;
+        }
+
+        address[] memory result = new address[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            result[i - offset] = farmersWithDocuments[i];
+        }
+
+        return result;
+    }
+
     function getFarmerDocuments(
         address farmer
     ) external view returns (FarmerDocuments memory) {

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import WalletConnect from '@/components/WalletConnect'
-import { useContract, useContractWrite, useContractRead, useContractEvents, useAddress } from '@thirdweb-dev/react'
+import { useContract, useContractWrite, useContractRead, useAddress } from '@thirdweb-dev/react'
 import { CONTRACTS } from '@/lib/contracts'
 import Link from 'next/link'
 
-// ✅ Fixed Type definitions
+// Type definitions
 interface FarmerDocuments {
   aadhaarHash: string
   landDocHash: string
@@ -22,34 +22,19 @@ interface CredentialData {
   issuer: string
 }
 
-// ✅ Component to view and verify farmer documents
+// Component to view and verify farmer documents
 function FarmerDocumentsViewer() {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
   const [selectedFarmer, setSelectedFarmer] = useState<string>('')
-  const [farmersList, setFarmersList] = useState<string[]>([])
   const [verifying, setVerifying] = useState(false)
 
-  // ✅ Listen to DocumentsUploaded events
-  const { data: uploadEvents, isLoading: eventsLoading } = useContractEvents(contract, 'DocumentsUploaded', {
-    queryFilter: {
-      fromBlock: 0,
-    },
-  })
+  // Fetch farmers list directly from contract
+  const { data: farmersData, isLoading: farmersLoading } = useContractRead(contract, 'getAllFarmersWithDocuments')
 
-  // ✅ Extract unique farmer addresses from events (fixed typing)
-  useEffect(() => {
-    if (uploadEvents && uploadEvents.length > 0) {
-      const farmers = uploadEvents
-        .map((event) => {
-          // Access the farmer address from event data
-          return (event.data as { farmer: string }).farmer
-        })
-        .filter((address: string, index: number, self: string[]) => self.indexOf(address) === index)
-      setFarmersList(farmers)
-    }
-  }, [uploadEvents])
+  // Convert to typed array
+  const farmersList = (farmersData as string[]) || []
 
-  // ✅ Fetch document data for selected farmer
+  // Fetch document data for selected farmer
   const { data: documents, refetch: refetchDocs } = useContractRead(contract, 'getFarmerDocuments', [selectedFarmer])
 
   const { mutateAsync: verifyAndIssue } = useContractWrite(contract, 'verifyDocumentsAndIssueCredential')
@@ -72,7 +57,6 @@ function FarmerDocumentsViewer() {
   }
 
   const getIPFSUrl = (hash: string) => `https://ipfs.io/ipfs/${hash}`
-
   const typedDocuments = documents as FarmerDocuments | undefined
 
   return (
@@ -80,7 +64,7 @@ function FarmerDocumentsViewer() {
       <h2 className="text-xl font-bold mb-4 text-black">Farmer Documents Verification</h2>
       <p className="text-sm text-gray-600 mb-4">View and verify documents uploaded by farmers</p>
 
-      {eventsLoading ? (
+      {farmersLoading ? (
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-gray-600">Loading farmers...</p>
         </div>
@@ -376,11 +360,11 @@ export default function IssuerDashboard() {
           </div>
         </div>
 
-        {/* ✅ Farmer Documents Verification Section */}
+        {/* Farmer Documents Verification Section */}
         <FarmerDocumentsViewer />
 
         {/* Credential Management */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        {/* <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold mb-4 text-black">Manual Credential Management</h2>
           <p className="text-sm text-gray-600 mb-4">Issue or revoke farmer credentials manually (without document verification)</p>
 
@@ -400,7 +384,7 @@ export default function IssuerDashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Check Credential Status */}
         <div className="bg-white rounded-lg shadow-md p-6">
