@@ -6,11 +6,17 @@ import { useContract, useContractWrite, useContractRead, useAddress } from '@thi
 import { CONTRACTS } from '@/lib/contracts'
 import Link from 'next/link'
 
-const STATUS_MAP = ['IN_PROGRESS', 'UNDER_REVIEW', 'SANCTIONED', 'REJECTED']
-
 type BigNumberish = {
   toNumber?: () => number
   toString?: () => string
+}
+
+interface BillDocument {
+  billHash: string
+  amount: BigNumberish
+  uploadedAt: BigNumberish
+  isApproved: boolean
+  disbursedAmount: BigNumberish
 }
 
 export default function AuditorDashboard() {
@@ -19,42 +25,12 @@ export default function AuditorDashboard() {
 
   // Read current auditor
   const { data: currentAuditor } = useContractRead(contract, 'auditor')
-  const { data: loanCounter } = useContractRead(contract, 'loanCounter')
 
-  // Contract write function
-  const { mutateAsync: disburseFunds } = useContractWrite(contract, 'disburseFunds')
-
-  // State
-  const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
-  const [disburseAmount, setDisburseAmount] = useState('')
-  const [billHash, setBillHash] = useState('')
-  const [loading, setLoading] = useState<string | null>(null)
+  // ✅ NEW: Get all loans with bills
+  const { data: loansWithBills } = useContractRead(contract, 'getAllLoansWithBills')
 
   // Check if connected wallet is the auditor
   const isAuditor = address && currentAuditor && address.toLowerCase() === currentAuditor.toLowerCase()
-
-  const handleDisburseFunds = async (loanId: number) => {
-    if (!disburseAmount || !billHash) {
-      alert('Please enter disbursement amount and bill hash')
-      return
-    }
-
-    setLoading(`disburse-${loanId}`)
-    try {
-      await disburseFunds({ args: [loanId, disburseAmount, billHash] })
-      alert(`₹${disburseAmount} disbursed for Loan #${loanId}`)
-      setSelectedLoanId(null)
-      setDisburseAmount('')
-      setBillHash('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
-    } finally {
-      setLoading(null)
-    }
-  }
 
   if (!address) {
     return (
@@ -72,7 +48,7 @@ export default function AuditorDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-red-50 p-8 rounded-lg shadow-md max-w-md border border-red-200">
-          <div className="text-4xl mb-4 text-black">⚠</div>
+          <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold mb-2 text-red-800">Access Denied</h2>
           <p className="text-gray-700 mb-4">You are not authorized as an auditor. Only the auditor wallet can access this dashboard.</p>
           <p className="text-sm text-gray-600 mb-4">
@@ -87,7 +63,8 @@ export default function AuditorDashboard() {
     )
   }
 
-  const totalLoans = loanCounter ? (typeof loanCounter === 'object' && 'toNumber' in loanCounter ? loanCounter.toNumber?.() ?? 0 : Number(loanCounter)) : 0
+  const loanIdsWithBills = (loansWithBills as BigNumberish[]) || []
+  const totalLoansWithBills = loanIdsWithBills.length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,7 +77,7 @@ export default function AuditorDashboard() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Auditor Dashboard</h1>
-              <p className="text-sm text-gray-600">Verify bills and disburse funds</p>
+              <p className="text-sm text-gray-600">Review bills and approve disbursements</p>
             </div>
           </div>
           <WalletConnect />
@@ -112,98 +89,69 @@ export default function AuditorDashboard() {
         {/* Stats */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600">Total Loans</p>
-            <p className="text-3xl font-bold text-black">{totalLoans}</p>
+            <p className="text-sm text-gray-600">Loans with Bills</p>
+            <p className="text-3xl font-bold text-black">{totalLoansWithBills}</p>
+          </div>
+          <div className="bg-yellow-50 p-6 rounded-lg shadow-md border border-yellow-200">
+            <p className="text-sm text-gray-600">Pending Review</p>
+            <p className="text-3xl font-bold text-yellow-700">--</p>
           </div>
           <div className="bg-green-50 p-6 rounded-lg shadow-md border border-green-200">
-            <p className="text-sm text-gray-600">Sanctioned Loans</p>
+            <p className="text-sm text-gray-600">Approved Bills</p>
             <p className="text-3xl font-bold text-green-700">--</p>
-          </div>
-          <div className="bg-blue-50 p-6 rounded-lg shadow-md border border-blue-200">
-            <p className="text-sm text-gray-600">Total Disbursed</p>
-            <p className="text-3xl font-bold text-blue-700">₹--</p>
           </div>
         </div>
 
-        {/* Sanctioned Loans */}
+        {/* Loans with Bills */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4 text-black">Sanctioned Loans (Ready for Disbursement)</h2>
-          <p className="text-sm text-gray-600 mb-4">Review bills and disburse funds for approved loans</p>
+          <h2 className="text-xl font-bold mb-4 text-black">Pending Bills for Review ({totalLoansWithBills})</h2>
+          <p className="text-sm text-gray-600 mb-4">Review farmer-submitted bills and approve disbursements</p>
 
-          {totalLoans === 0 ? (
-            <p className="text-gray-600 text-center py-8">No loan applications yet</p>
+          {totalLoansWithBills === 0 ? (
+            <div className="bg-gray-50 rounded-lg p-8 text-center">
+              <p className="text-gray-600">No bills submitted yet</p>
+              <p className="text-sm text-gray-500 mt-2">Bills will appear here once farmers upload them</p>
+            </div>
           ) : (
             <div className="space-y-4">
-              {Array.from({ length: totalLoans }, (_, i) => i).map((loanId) => (
-                <LoanCard
-                  key={loanId}
-                  loanId={loanId}
-                  selectedLoanId={selectedLoanId}
-                  setSelectedLoanId={setSelectedLoanId}
-                  disburseAmount={disburseAmount}
-                  setDisburseAmount={setDisburseAmount}
-                  billHash={billHash}
-                  setBillHash={setBillHash}
-                  loading={loading}
-                  onDisburse={handleDisburseFunds}
-                />
-              ))}
+              {loanIdsWithBills.map((loanId: BigNumberish, index: number) => {
+                const id = typeof loanId === 'object' && loanId.toNumber ? loanId.toNumber() : Number(loanId)
+                return <LoanWithBillsCard key={index} loanId={id} />
+              })}
             </div>
           )}
         </div>
 
         {/* Instructions */}
-        <div className="bg-orange-50 rounded-lg p-6 border border-orange-200">
-          <h3 className="font-bold text-orange-900 mb-3">Auditor Responsibilities</h3>
-          <ul className="text-sm text-orange-800 space-y-2 list-disc list-inside">
-            <li>
-              <strong>Verify Bills:</strong> Check authenticity of farmer&apos;s purchase bills/invoices
-            </li>
-            <li>
-              <strong>Disburse Funds:</strong> Release funds only after bill verification
-            </li>
-            <li>
-              <strong>Amount Check:</strong> Ensure disbursement doesn&apos;t exceed sanctioned amount
-            </li>
-            <li>
-              <strong>Partial Disbursement:</strong> You can disburse in multiple installments
-            </li>
-            <li>
-              <strong>Bill Hash:</strong> Use IPFS hash or any permanent storage reference
-            </li>
-          </ul>
-        </div>
-
-        {/* Bill Upload Guide */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="font-bold text-lg mb-3 text-black">Bill Verification Process</h3>
-          <div className="space-y-3 text-sm">
+        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+          <h3 className="font-bold text-blue-900 mb-3">Auditor Workflow</h3>
+          <div className="space-y-3 text-sm text-blue-800">
             <div className="flex gap-3">
-              <span className="text-2xl text-black">1</span>
+              <span className="text-2xl">1️⃣</span>
               <div>
-                <p className="font-semibold text-black">Farmer Submits Bill</p>
-                <p className="text-gray-600">Farmer uploads bill/invoice for agricultural purchase</p>
+                <p className="font-semibold">Review Bill</p>
+                <p>Click &quot;View Bill&quot; to see the farmer&apos;s uploaded document</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl text-black">2</span>
+              <span className="text-2xl">2️⃣</span>
               <div>
-                <p className="font-semibold text-black">Auditor Verifies</p>
-                <p className="text-gray-600">You verify the bill is legitimate and matches loan category</p>
+                <p className="font-semibold">Verify Authenticity</p>
+                <p>Check if the bill is legitimate and matches the loan category</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl text-black">3</span>
+              <span className="text-2xl">3️⃣</span>
               <div>
-                <p className="font-semibold text-black">Enter Bill Hash</p>
-                <p className="text-gray-600">Store bill on IPFS and enter the hash (e.g., ipfs://Qm...)</p>
+                <p className="font-semibold">Approve Amount</p>
+                <p>Enter the approved amount (can be less than requested)</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl text-black">4</span>
+              <span className="text-2xl">4️⃣</span>
               <div>
-                <p className="font-semibold text-black">Disburse Funds</p>
-                <p className="text-gray-600">Release funds to farmer&apos;s wallet for verified amount</p>
+                <p className="font-semibold">Disburse Funds</p>
+                <p>Click approve to release funds to the farmer</p>
               </div>
             </div>
           </div>
@@ -213,39 +161,19 @@ export default function AuditorDashboard() {
   )
 }
 
-// Loan Card Component
-function LoanCard({
-  loanId,
-  selectedLoanId,
-  setSelectedLoanId,
-  disburseAmount,
-  setDisburseAmount,
-  billHash,
-  setBillHash,
-  loading,
-  onDisburse,
-}: {
-  loanId: number
-  selectedLoanId: number | null
-  setSelectedLoanId: (id: number | null) => void
-  disburseAmount: string
-  setDisburseAmount: (amount: string) => void
-  billHash: string
-  setBillHash: (hash: string) => void
-  loading: string | null
-  onDisburse: (loanId: number) => void
-}) {
+// ✅ NEW: Loan card that fetches and displays bills
+function LoanWithBillsCard({ loanId }: { loanId: number }) {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
-  const { data: loan, isLoading } = useContractRead(contract, 'loanApplications', [loanId])
+  const { mutateAsync: disburseFunds } = useContractWrite(contract, 'disburseFunds')
 
-  if (isLoading) {
-    return <div className="p-4 border rounded-lg bg-gray-50 text-black">Loading loan #{loanId}...</div>
-  }
+  const { data: loan } = useContractRead(contract, 'loanApplications', [loanId])
+  const { data: bills, refetch: refetchBills } = useContractRead(contract, 'getLoanBills', [loanId])
+
+  const [expandedBill, setExpandedBill] = useState<number | null>(null)
+  const [approvedAmount, setApprovedAmount] = useState<{ [key: number]: string }>({})
+  const [processing, setProcessing] = useState<number | null>(null)
 
   if (!loan) return null
-
-  // Only show SANCTIONED loans
-  if (loan.status !== 2) return null
 
   const toBigNumberString = (value: BigNumberish | undefined): string => {
     if (!value) return '0'
@@ -255,123 +183,166 @@ function LoanCard({
     return String(value)
   }
 
-  const requestedAmount = toBigNumberString(loan.requestedAmount as BigNumberish)
   const sanctionedAmount = toBigNumberString(loan.sanctionedAmount as BigNumberish)
   const disbursedAmount = toBigNumberString(loan.disbursedAmount as BigNumberish)
   const remainingAmount = Number(sanctionedAmount) - Number(disbursedAmount)
-  const status = STATUS_MAP[loan.status]
 
-  const isExpanded = selectedLoanId === loanId
-  const isFullyDisbursed = Number(disbursedAmount) >= Number(sanctionedAmount)
+  const typedBills = (bills as BillDocument[]) || []
+  const pendingBills = typedBills.filter((bill) => !bill.isApproved)
+
+  if (pendingBills.length === 0) return null
+
+  const handleApproveBill = async (billIndex: number, requestedAmount: string) => {
+    const amount = approvedAmount[billIndex] || requestedAmount
+
+    if (!amount || Number(amount) <= 0) {
+      alert('Please enter a valid amount')
+      return
+    }
+
+    if (Number(amount) > Number(requestedAmount)) {
+      alert('Approved amount cannot exceed requested amount')
+      return
+    }
+
+    if (Number(amount) > remainingAmount) {
+      alert('Approved amount exceeds remaining loan balance')
+      return
+    }
+
+    setProcessing(billIndex)
+    try {
+      await disburseFunds({
+        args: [loanId, billIndex, amount],
+      })
+      alert(`₹${amount} approved and disbursed for Bill #${billIndex + 1}`)
+      setApprovedAmount((prev) => ({ ...prev, [billIndex]: '' }))
+      setExpandedBill(null)
+      refetchBills()
+    } catch (error) {
+      console.error(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to disburse'
+      alert(`Error: ${errorMessage}`)
+    } finally {
+      setProcessing(null)
+    }
+  }
 
   return (
-    <div className={`border rounded-lg ${isFullyDisbursed ? 'bg-gray-50 border-gray-300' : 'bg-green-50 border-green-200'}`}>
-      {/* Card Header */}
-      <div className="p-4 cursor-pointer" onClick={() => setSelectedLoanId(isExpanded ? null : loanId)}>
+    <div className="border rounded-lg bg-white shadow-sm">
+      {/* Loan Header */}
+      <div className="p-4 bg-gray-50 border-b">
         <div className="flex justify-between items-start">
-          <div className="flex-1">
+          <div>
             <p className="font-bold text-lg text-black">Loan #{loanId}</p>
-            <p className="text-xs font-mono text-gray-600 break-all">{loan.farmer}</p>
-            <p className="text-sm mt-1">
-              <span className="font-medium text-black">{loan.loanCategory}</span>
+            <p className="text-xs font-mono text-gray-600 mt-1">{loan.farmer}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Category: <span className="font-medium text-black">{loan.loanCategory}</span>
             </p>
           </div>
-          <div className="text-right ml-4">
-            <span className="text-xs font-semibold px-3 py-1 rounded bg-green-600 text-white">{status}</span>
-            <p className="text-sm mt-2">{isFullyDisbursed ? <span className="text-green-700 font-semibold">Fully Disbursed</span> : <span className="text-orange-700 font-semibold">Pending</span>}</p>
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Remaining Balance</p>
+            <p className="text-xl font-bold text-green-700">₹{remainingAmount}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              ₹{disbursedAmount} / ₹{sanctionedAmount}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Expanded Details & Actions */}
-      {isExpanded && (
-        <div className="border-t p-4 bg-white">
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div className="space-y-2 text-sm">
-              <p className="text-black">
-                <strong>Requested:</strong> ₹{requestedAmount}
-              </p>
-              <p className="text-black">
-                <strong>Sanctioned:</strong> ₹{sanctionedAmount}
-              </p>
-              <p className="text-black">
-                <strong>Already Disbursed:</strong> ₹{disbursedAmount}
-              </p>
-            </div>
-            <div className="space-y-2 text-sm">
-              <p className="text-black">
-                <strong>Category:</strong> {loan.loanCategory}
-              </p>
-              <p className="text-black">
-                <strong>Remaining:</strong> <span className="text-lg font-bold text-green-700">₹{remainingAmount}</span>
-              </p>
-            </div>
-          </div>
+      {/* Bills List */}
+      <div className="p-4 space-y-3">
+        <h3 className="font-semibold text-black">Pending Bills ({pendingBills.length})</h3>
 
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>Disbursement Progress</span>
-              <span>{((Number(disbursedAmount) / Number(sanctionedAmount)) * 100).toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${(Number(disbursedAmount) / Number(sanctionedAmount)) * 100}%` }} />
-            </div>
-          </div>
+        {pendingBills.map((bill) => {
+          // Find the actual index in the full bills array
+          const billIndex = typedBills.findIndex((b) => b === bill)
+          const isExpanded = expandedBill === billIndex
+          const requestedAmount = toBigNumberString(bill.amount)
 
-          {/* Disbursement Form */}
-          {!isFullyDisbursed && (
-            <div className="space-y-3 border-t pt-4">
-              <h4 className="font-semibold text-sm text-black">Disburse Funds</h4>
-
-              <div>
-                <label className="block text-sm font-medium mb-1 text-black">Disbursement Amount (₹)</label>
-                <input
-                  type="text"
-                  placeholder={`Max: ₹${remainingAmount}`}
-                  value={disburseAmount}
-                  onChange={(e) => setDisburseAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full p-2 border rounded text-black"
-                />
-                <p className="text-xs text-gray-500 mt-1">Maximum: ₹{remainingAmount}</p>
+          return (
+            <div key={billIndex} className="border rounded-lg bg-yellow-50 border-yellow-200">
+              {/* Bill Header */}
+              <div className="p-3 cursor-pointer" onClick={() => setExpandedBill(isExpanded ? null : billIndex)}>
+                <div className="flex justify-between items-center">
+                  <div className="flex-1">
+                    <p className="font-semibold text-black">Bill #{billIndex + 1}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Requested Amount: <span className="font-bold">₹{requestedAmount}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Uploaded: {new Date(Number(bill.uploadedAt) * 1000).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-3 py-1 rounded bg-yellow-600 text-white">Pending Review</span>
+                    <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1 text-black">Bill/Invoice Hash</label>
-                <input
-                  type="text"
-                  placeholder="ipfs://Qm... or any storage reference"
-                  value={billHash}
-                  onChange={(e) => setBillHash(e.target.value)}
-                  className="w-full p-2 border rounded text-black"
-                />
-                <p className="text-xs text-gray-500 mt-1">Permanent reference to the verified bill</p>
-              </div>
+              {/* Expanded Bill Details */}
+              {isExpanded && (
+                <div className="border-t p-4 bg-white space-y-4">
+                  {/* Bill Document */}
+                  <div>
+                    <p className="text-sm font-semibold text-black mb-2">Bill Document</p>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      <p className="text-xs font-mono text-gray-600 break-all mb-2">{bill.billHash}</p>
+                      <a
+                        href={`https://ipfs.io/ipfs/${bill.billHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                      >
+                        📄 View Bill Document →
+                      </a>
+                    </div>
+                  </div>
 
-              <button
-                onClick={() => onDisburse(loanId)}
-                disabled={loading === `disburse-${loanId}` || !disburseAmount || !billHash || Number(disburseAmount) > remainingAmount}
-                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold"
-              >
-                {loading === `disburse-${loanId}` ? 'Processing...' : 'Disburse Funds'}
-              </button>
+                  {/* Approval Form */}
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-semibold text-black mb-3">Approve Disbursement</p>
 
-              <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                <p className="text-xs text-yellow-800">
-                  <strong>Important:</strong> Verify the bill authenticity before disbursing funds. This action is recorded on the blockchain and cannot be undone.
-                </p>
-              </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-black">Approved Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={approvedAmount[billIndex] || requestedAmount}
+                          onChange={(e) =>
+                            setApprovedAmount((prev) => ({
+                              ...prev,
+                              [billIndex]: e.target.value,
+                            }))
+                          }
+                          placeholder={`Max: ₹${Math.min(Number(requestedAmount), remainingAmount)}`}
+                          className="w-full p-2 border rounded text-black"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Requested: ₹{requestedAmount} | Loan Balance: ₹{remainingAmount}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleApproveBill(billIndex, requestedAmount)}
+                        disabled={processing === billIndex}
+                        className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold"
+                      >
+                        {processing === billIndex ? 'Processing...' : '✅ Approve & Disburse'}
+                      </button>
+
+                      <div className="bg-orange-50 p-3 rounded border border-orange-200">
+                        <p className="text-xs text-orange-800">
+                          <strong>⚠️ Important:</strong> Once approved, funds will be immediately disbursed to the farmer. Ensure you&apos;ve verified the bill authenticity.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Fully Disbursed Message */}
-          {isFullyDisbursed && (
-            <div className="bg-green-100 p-4 rounded-lg border border-green-300">
-              <p className="text-green-800 font-semibold text-center">This loan has been fully disbursed</p>
-            </div>
-          )}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
