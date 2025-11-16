@@ -5,6 +5,7 @@ import WalletConnect from '@/components/WalletConnect'
 import CheckCredential from '@/components/CheckCredential'
 import LoanApplication from '@/components/LoanApplication'
 import MyLoans from '@/components/MyLoans'
+import UploadDocuments from '@/components/upload-docs'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -15,10 +16,34 @@ import {
   Sparkles,
   Lock,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  TrendingUp,
+  Activity
 } from 'lucide-react'
 
 export default function Home() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+      },
+    },
+  }
+
   const guidelines = [
     {
       icon: ShieldCheck,
@@ -47,26 +72,26 @@ export default function Home() {
     },
   ]
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+  const quickStats = [
+    {
+      label: 'Privacy Assured',
+      icon: Lock,
+      color: 'from-green-500 to-emerald-600',
+      value: '100%'
     },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
+    {
+      label: 'Fast Processing',
+      icon: Zap,
+      color: 'from-amber-500 to-orange-600',
+      value: '<5min'
     },
-  }
+    {
+      label: 'Success Rate',
+      icon: TrendingUp,
+      color: 'from-blue-500 to-cyan-600',
+      value: '95%'
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-white to-white relative overflow-hidden">
@@ -213,6 +238,53 @@ export default function Home() {
             />
           </motion.div>
 
+          {/* Quick Stats */}
+          <motion.div
+            variants={itemVariants}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+          >
+            {quickStats.map((stat, index) => {
+              const Icon = stat.icon
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 + index * 0.1 }}
+                  whileHover={{ scale: 1.05, y: -4 }}
+                  className={`bg-gradient-to-br ${stat.color} rounded-2xl p-6 shadow-lg text-white relative overflow-hidden group`}
+                >
+                  {/* Animated background */}
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                    className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"
+                  />
+
+                  <div className="relative z-10">
+                    <motion.div
+                      animate={{ y: [0, -5, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
+                      className="flex justify-center mb-3"
+                    >
+                      <Icon className="w-8 h-8" />
+                    </motion.div>
+                    <p className="text-3xl font-bold text-center mb-1">{stat.value}</p>
+                    <p className="text-sm font-medium text-center opacity-90">{stat.label}</p>
+                  </div>
+
+                  {/* Shine effect */}
+                  <motion.div
+                    className="absolute top-0 -left-full h-full w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"
+                    initial={false}
+                    whileHover={{ left: '150%' }}
+                    transition={{ duration: 0.7 }}
+                  />
+                </motion.div>
+              )
+            })}
+          </motion.div>
+
           {/* Credential Status Card */}
           <motion.div
             variants={itemVariants}
@@ -232,6 +304,28 @@ export default function Home() {
             </div>
             <div className="p-6">
               <CheckCredential />
+            </div>
+          </motion.div>
+
+          {/* Upload Documents Card */}
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -2 }}
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-green-100/50 overflow-hidden"
+          >
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-purple-100/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                  <Upload className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Document Upload</h3>
+                  <p className="text-xs text-gray-600">Upload verification documents</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <UploadDocuments />
             </div>
           </motion.div>
 
@@ -318,7 +412,7 @@ export default function Home() {
                     >
                       <motion.div
                         whileHover={{ scale: 1.1, rotate: 5 }}
-                        className={`w-10 h-10 ${guideline.color} bg-gradient-to-br from-white to-gray-50 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all`}
+                        className={`w-10 h-10 ${guideline.color} bg-gradient-to-br from-white to-gray-50 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all flex-shrink-0`}
                       >
                         <Icon className="w-5 h-5" />
                       </motion.div>
@@ -350,37 +444,34 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Quick Stats */}
+          {/* Activity Indicator */}
           <motion.div
             variants={itemVariants}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+            className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200/50 shadow-md"
           >
-            {[
-              { label: 'Privacy Assured', icon: Lock, color: 'from-green-500 to-emerald-600' },
-              { label: 'Fast Processing', icon: Zap, color: 'from-amber-500 to-orange-600' },
-              { label: 'Secure Blockchain', icon: ShieldCheck, color: 'from-blue-500 to-cyan-600' },
-            ].map((stat, index) => {
-              const Icon = stat.icon
-              return (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.2 + index * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 shadow-lg text-white text-center`}
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg"
                 >
-                  <motion.div
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                    className="flex justify-center mb-2"
-                  >
-                    <Icon className="w-6 h-6" />
-                  </motion.div>
-                  <p className="text-sm font-semibold">{stat.label}</p>
+                  <Activity className="w-5 h-5 text-white" />
                 </motion.div>
-              )
-            })}
+                <div>
+                  <p className="font-bold text-gray-900">System Status</p>
+                  <p className="text-xs text-gray-600">All systems operational</p>
+                </div>
+              </div>
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="flex items-center gap-2"
+              >
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-sm font-medium text-green-700">Online</span>
+              </motion.div>
+            </div>
           </motion.div>
         </motion.div>
       </main>
