@@ -181,8 +181,8 @@ export default function IssuerDashboard() {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
 
   // Contract write functions
-  const { mutateAsync: issueCredential } = useContractWrite(contract, 'issueCredential')
-  const { mutateAsync: revokeCredential } = useContractWrite(contract, 'revokeCredential')
+  // const { mutateAsync: issueCredential } = useContractWrite(contract, 'issueCredential')
+  // const { mutateAsync: revokeCredential } = useContractWrite(contract, 'revokeCredential')
   const { mutateAsync: setBankOfficer } = useContractWrite(contract, 'setBankOfficer')
   const { mutateAsync: setAuditor } = useContractWrite(contract, 'setAuditor')
 
@@ -192,7 +192,7 @@ export default function IssuerDashboard() {
   const { data: currentAuditor } = useContractRead(contract, 'auditor')
 
   // State for forms
-  const [farmerAddress, setFarmerAddress] = useState('')
+  // const [farmerAddress, setFarmerAddress] = useState('')
   const [checkAddress, setCheckAddress] = useState('')
   const [bankOfficerAddress, setBankOfficerAddress] = useState('')
   const [auditorAddress, setAuditorAddress] = useState('')
@@ -203,45 +203,45 @@ export default function IssuerDashboard() {
 
   const typedCredentialData = credentialData as CredentialData | undefined
 
-  const handleIssueCredential = async () => {
-    if (!farmerAddress) {
-      alert('Please enter farmer address')
-      return
-    }
+  // const handleIssueCredential = async () => {
+  //   if (!farmerAddress) {
+  //     alert('Please enter farmer address')
+  //     return
+  //   }
 
-    setLoading('issue')
-    try {
-      await issueCredential({ args: [farmerAddress] })
-      alert('Credential issued successfully!')
-      setFarmerAddress('')
-    } catch (error) {
-      console.error(error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to issue credential'
-      alert(`Error: ${errorMessage}`)
-    } finally {
-      setLoading(null)
-    }
-  }
+  //   setLoading('issue')
+  //   try {
+  //     await issueCredential({ args: [farmerAddress] })
+  //     alert('Credential issued successfully!')
+  //     setFarmerAddress('')
+  //   } catch (error) {
+  //     console.error(error)
+  //     const errorMessage = error instanceof Error ? error.message : 'Failed to issue credential'
+  //     alert(`Error: ${errorMessage}`)
+  //   } finally {
+  //     setLoading(null)
+  //   }
+  // }
 
-  const handleRevokeCredential = async () => {
-    if (!farmerAddress) {
-      alert('Please enter farmer address')
-      return
-    }
+  // const handleRevokeCredential = async () => {
+  //   if (!farmerAddress) {
+  //     alert('Please enter farmer address')
+  //     return
+  //   }
 
-    setLoading('revoke')
-    try {
-      await revokeCredential({ args: [farmerAddress] })
-      alert('Credential revoked successfully!')
-      setFarmerAddress('')
-    } catch (error) {
-      console.error(error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to revoke credential'
-      alert(`Error: ${errorMessage}`)
-    } finally {
-      setLoading(null)
-    }
-  }
+  //   setLoading('revoke')
+  //   try {
+  //     await revokeCredential({ args: [farmerAddress] })
+  //     alert('Credential revoked successfully!')
+  //     setFarmerAddress('')
+  //   } catch (error) {
+  //     console.error(error)
+  //     const errorMessage = error instanceof Error ? error.message : 'Failed to revoke credential'
+  //     alert(`Error: ${errorMessage}`)
+  //   } finally {
+  //     setLoading(null)
+  //   }
+  // }
 
   const handleSetBankOfficer = async () => {
     if (!bankOfficerAddress) {

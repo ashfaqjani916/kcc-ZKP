@@ -45,14 +45,27 @@ contract KCCLoanManager {
         bool isVerified;
     }
 
+    struct BillDocument {
+        string billHash;
+        uint256 amount;
+        uint256 uploadedAt;
+        bool isApproved;
+        uint256 disbursedAmount;
+    }
+
     mapping(address => Credential) public farmerCredentials;
     mapping(uint256 => LoanApplication) public loanApplications;
     mapping(address => uint256[]) public farmerLoans;
     mapping(address => FarmerDocuments) public farmerDocuments;
+    mapping(uint256 => BillDocument[]) public loanBills;
 
-    // ✅ NEW: Track all farmers who uploaded documents
+    // ✅ Track farmers who uploaded KYC documents
     address[] private farmersWithDocuments;
-    mapping(address => bool) private hasFarmerUploaded; // Prevent duplicates
+    mapping(address => bool) private hasFarmerUploaded;
+
+    // ✅ NEW: Track loans with bills uploaded
+    uint256[] private loansWithBills;
+    mapping(uint256 => bool) private hasLoanBills;
 
     uint256 public loanCounter;
 
@@ -74,8 +87,16 @@ contract KCCLoanManager {
     event LoanStatusUpdated(uint256 indexed loanId, LoanStatus status);
     event FundsDisbursed(
         uint256 indexed loanId,
+        uint256 billIndex,
         uint256 amount,
         string billHash
+    );
+    event BillUploaded(
+        uint256 indexed loanId,
+        uint256 billIndex,
+        string billHash,
+        uint256 amount,
+        uint256 timestamp
     );
     event DocumentsUploaded(
         address indexed farmer,
@@ -135,7 +156,6 @@ contract KCCLoanManager {
         emit CredentialRevoked(farmer, block.timestamp);
     }
 
-    // ✅ UPDATED: Track farmer in array when uploading
     function uploadDocuments(
         string memory _aadhaarHash,
         string memory _landDocHash,
@@ -156,7 +176,6 @@ contract KCCLoanManager {
             isVerified: false
         });
 
-        // ✅ NEW: Add farmer to array if first time uploading
         if (!hasFarmerUploaded[msg.sender]) {
             farmersWithDocuments.push(msg.sender);
             hasFarmerUploaded[msg.sender] = true;
@@ -197,7 +216,7 @@ contract KCCLoanManager {
         emit CredentialIssued(farmer, msg.sender, block.timestamp);
     }
 
-    // ✅ NEW: Get all farmers who uploaded documents
+    // ✅ KYC Document queries
     function getAllFarmersWithDocuments()
         external
         view
@@ -206,12 +225,10 @@ contract KCCLoanManager {
         return farmersWithDocuments;
     }
 
-    // ✅ NEW: Get total count of farmers
     function getFarmersCount() external view returns (uint256) {
         return farmersWithDocuments.length;
     }
 
-    // ✅ NEW: Pagination support for large lists
     function getFarmersPaginated(
         uint256 offset,
         uint256 limit
@@ -298,20 +315,119 @@ contract KCCLoanManager {
         emit LoanStatusUpdated(loanId, LoanStatus.REJECTED);
     }
 
+    // ✅ Farmer uploads bill
+    function uploadBill(
+        uint256 loanId,
+        string memory billHash,
+        uint256 requestedAmount
+    ) external {
+        LoanApplication storage loan = loanApplications[loanId];
+        require(loan.farmer == msg.sender, "Not loan owner");
+        require(loan.status == LoanStatus.SANCTIONED, "Loan not sanctioned");
+        require(bytes(billHash).length > 0, "Bill hash required");
+        require(requestedAmount > 0, "Amount must be > 0");
+        require(
+            loan.disbursedAmount + requestedAmount <= loan.sanctionedAmount,
+            "Exceeds sanctioned amount"
+        );
+
+        loanBills[loanId].push(
+            BillDocument({
+                billHash: billHash,
+                amount: requestedAmount,
+                uploadedAt: block.timestamp,
+                isApproved: false,
+                disbursedAmount: 0
+            })
+        );
+
+        // ✅ Track this loan if first bill
+        if (!hasLoanBills[loanId]) {
+            loansWithBills.push(loanId);
+            hasLoanBills[loanId] = true;
+        }
+
+        uint256 billIndex = loanBills[loanId].length - 1;
+        emit BillUploaded(
+            loanId,
+            billIndex,
+            billHash,
+            requestedAmount,
+            block.timestamp
+        );
+    }
+
     function disburseFunds(
         uint256 loanId,
-        uint256 amount,
-        string memory billHash
+        uint256 billIndex,
+        uint256 amount
     ) external onlyAuditor {
         LoanApplication storage loan = loanApplications[loanId];
         require(loan.status == LoanStatus.SANCTIONED, "Not sanctioned");
+        require(billIndex < loanBills[loanId].length, "Invalid bill index");
+
+        BillDocument storage bill = loanBills[loanId][billIndex];
+        require(!bill.isApproved, "Bill already processed");
+        require(amount <= bill.amount, "Amount exceeds bill request");
         require(
             loan.disbursedAmount + amount <= loan.sanctionedAmount,
-            "Exceeds limit"
+            "Exceeds sanctioned limit"
         );
 
+        bill.isApproved = true;
+        bill.disbursedAmount = amount;
         loan.disbursedAmount += amount;
-        emit FundsDisbursed(loanId, amount, billHash);
+
+        emit FundsDisbursed(loanId, billIndex, amount, bill.billHash);
+    }
+
+    // ✅ Bill document queries
+    function getLoanBills(
+        uint256 loanId
+    ) external view returns (BillDocument[] memory) {
+        return loanBills[loanId];
+    }
+
+    function getBillDetails(
+        uint256 loanId,
+        uint256 billIndex
+    ) external view returns (BillDocument memory) {
+        require(billIndex < loanBills[loanId].length, "Invalid bill index");
+        return loanBills[loanId][billIndex];
+    }
+
+    function getBillCount(uint256 loanId) external view returns (uint256) {
+        return loanBills[loanId].length;
+    }
+
+    // ✅ NEW: Get all loans that have bills uploaded
+    function getAllLoansWithBills() external view returns (uint256[] memory) {
+        return loansWithBills;
+    }
+
+    // ✅ NEW: Get count of loans with bills
+    function getLoansWithBillsCount() external view returns (uint256) {
+        return loansWithBills.length;
+    }
+
+    // ✅ NEW: Pagination for loans with bills
+    function getLoansWithBillsPaginated(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (uint256[] memory) {
+        require(offset < loansWithBills.length, "Offset out of bounds");
+
+        uint256 end = offset + limit;
+        if (end > loansWithBills.length) {
+            end = loansWithBills.length;
+        }
+
+        uint256[] memory result = new uint256[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            result[i - offset] = loansWithBills[i];
+        }
+
+        return result;
     }
 
     function getFarmerLoans(
