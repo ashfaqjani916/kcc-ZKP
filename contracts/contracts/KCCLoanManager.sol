@@ -21,6 +21,8 @@ interface IERC20 {
         uint256 amount
     ) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
+    function mintTo(address to, uint256 amount) external returns (bool);
+    function burn(uint256 amount) external returns (bool);
 }
 
 contract KCCLoanManager {
@@ -40,6 +42,7 @@ contract KCCLoanManager {
         string loanCategory;
         LoanStatus status;
         uint256 sanctionedAmount;
+        uint256 disbursedTokens;
         uint256 disbursedAmount;
         uint256 timestamp;
     }
@@ -172,6 +175,19 @@ contract KCCLoanManager {
         emit CredentialRevoked(farmer, block.timestamp);
     }
 
+    function verifyFarmerProof(
+        uint256[2] memory a,
+        uint256[2][2] memory b,
+        uint256[2] memory c,
+        uint256[3] memory input
+    ) external view returns (bool) {
+        bool success = verifier.verifyProof(a, b, c, input);
+        if (!success) {
+            return false;
+        }
+        return true;
+    }
+
     function uploadDocuments(
         string memory _aadhaarHash,
         string memory _landDocHash,
@@ -290,6 +306,7 @@ contract KCCLoanManager {
             loanCategory: loanCategory,
             status: LoanStatus.IN_PROGRESS,
             sanctionedAmount: 0,
+            disbursedTokens: 0,
             disbursedAmount: 0,
             timestamp: block.timestamp
         });
@@ -328,6 +345,24 @@ contract KCCLoanManager {
     function rejectLoan(uint256 loanId) external onlyBankOfficer {
         loanApplications[loanId].status = LoanStatus.REJECTED;
         emit LoanStatusUpdated(loanId, LoanStatus.REJECTED);
+    }
+
+    function disburseAmount(
+        uint256 amount,
+        address farmer,
+        uint256 loanId
+    ) external onlyBankOfficer returns (bool) {
+        require(farmerCredentials[farmer].isIssued, "No credential");
+        require(!farmerCredentials[farmer].isRevoked, "Revoked");
+        bool success = creditToken.burn(amount);
+        require(success, "token burning failure - disbursement failed");
+        LoanApplication storage loan = loanApplications[loanId];
+
+        loan.disbursedTokens = 0;
+        loan.disbursedAmount = loan.disbursedTokens;
+        loan.disbursedTokens = 0;
+
+        return true;
     }
 
     function uploadBill(
@@ -387,15 +422,26 @@ contract KCCLoanManager {
             "Exceeds sanctioned limit"
         );
 
-        // Transfer tokens from auditor (msg.sender) to farmer (loan.farmer)
-        bool success = creditToken.transfer(loan.farmer, amount);
+        // Transfer tokens from auditor (msg.sender) to banker
+        bool success = creditToken.transfer(bankOfficer, amount);
         require(success, "Token transfer failed");
 
         bill.isApproved = true;
         bill.disbursedAmount = amount;
-        loan.disbursedAmount += amount;
+        loan.disbursedTokens = amount;
+        // loan.disbursedAmount += amount;
 
         emit FundsDisbursed(loanId, billIndex, amount, bill.billHash);
+    }
+
+    function mintTokens(address to, uint256 amount) external onlyAuditor {
+        require(to != address(0), "Invalid address");
+        bool success = creditToken.mintTo(to, amount);
+        require(success, "Minting failed");
+    }
+
+    function getTokenBalance(address account) external view returns (uint256) {
+        return creditToken.balanceOf(account);
     }
 
     // New function for transferFrom spending

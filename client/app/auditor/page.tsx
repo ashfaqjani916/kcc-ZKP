@@ -22,15 +22,17 @@ interface BillDocument {
 export default function AuditorDashboard() {
   const address = useAddress()
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
-
-  // Read current auditor
   const { data: currentAuditor } = useContractRead(contract, 'auditor')
-
-  // ✅ NEW: Get all loans with bills
   const { data: loansWithBills } = useContractRead(contract, 'getAllLoansWithBills')
+  const { mutateAsync: mintTokens } = useContractWrite(contract, 'mintTokens')
 
-  // Check if connected wallet is the auditor
   const isAuditor = address && currentAuditor && address.toLowerCase() === currentAuditor.toLowerCase()
+
+  const loanIdsWithBills = (loansWithBills as BigNumberish[]) || []
+  const totalLoansWithBills = loanIdsWithBills.length
+
+  const [mintAmount, setMintAmount] = useState('')
+  const [minting, setMinting] = useState(false)
 
   if (!address) {
     return (
@@ -63,12 +65,8 @@ export default function AuditorDashboard() {
     )
   }
 
-  const loanIdsWithBills = (loansWithBills as BigNumberish[]) || []
-  const totalLoansWithBills = loanIdsWithBills.length
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -84,9 +82,7 @@ export default function AuditorDashboard() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        {/* Stats */}
         <div className="grid md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow-md">
             <p className="text-sm text-gray-600">Loans with Bills</p>
@@ -102,11 +98,9 @@ export default function AuditorDashboard() {
           </div>
         </div>
 
-        {/* Loans with Bills */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold mb-4 text-black">Pending Bills for Review ({totalLoansWithBills})</h2>
           <p className="text-sm text-gray-600 mb-4">Review farmer-submitted bills and approve disbursements</p>
-
           {totalLoansWithBills === 0 ? (
             <div className="bg-gray-50 rounded-lg p-8 text-center">
               <p className="text-gray-600">No bills submitted yet</p>
@@ -122,7 +116,50 @@ export default function AuditorDashboard() {
           )}
         </div>
 
-        {/* Instructions */}
+        {isAuditor && (
+          <div className="max-w-md mx-auto mt-8 bg-white border rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-2 text-black">Mint Tokens To Self</h2>
+            <p className="text-sm text-gray-700 mb-4">You (Auditor) can mint credit tokens for yourself for test/disbursement use.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!mintAmount || Number(mintAmount) <= 0) {
+                  alert('Please enter a valid amount')
+                  return
+                }
+                setMinting(true)
+                try {
+                  await mintTokens({ args: [address, mintAmount] })
+                  setMintAmount('')
+                  alert(`Minted ${mintAmount} tokens to yourself!`)
+                } catch (err) {
+                  console.error(err)
+                  alert('Minting failed')
+                } finally {
+                  setMinting(false)
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1 text-black">Amount to Mint</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={mintAmount}
+                  onChange={(e) => setMintAmount(e.target.value)}
+                  required
+                  className="w-full p-2 border rounded text-black"
+                  placeholder="Enter amount..."
+                />
+              </div>
+              <button type="submit" disabled={minting} className="w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800 disabled:bg-gray-400 font-semibold">
+                {minting ? 'Minting...' : 'Mint Tokens'}
+              </button>
+            </form>
+          </div>
+        )}
+
         <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
           <h3 className="font-bold text-blue-900 mb-3">Auditor Workflow</h3>
           <div className="space-y-3 text-sm text-blue-800">
@@ -161,11 +198,9 @@ export default function AuditorDashboard() {
   )
 }
 
-// ✅ NEW: Loan card that fetches and displays bills
 function LoanWithBillsCard({ loanId }: { loanId: number }) {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
   const { mutateAsync: disburseFunds } = useContractWrite(contract, 'disburseFunds')
-
   const { data: loan } = useContractRead(contract, 'loanApplications', [loanId])
   const { data: bills, refetch: refetchBills } = useContractRead(contract, 'getLoanBills', [loanId])
 
@@ -230,7 +265,6 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
 
   return (
     <div className="border rounded-lg bg-white shadow-sm">
-      {/* Loan Header */}
       <div className="p-4 bg-gray-50 border-b">
         <div className="flex justify-between items-start">
           <div>
@@ -249,20 +283,15 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
           </div>
         </div>
       </div>
-
-      {/* Bills List */}
       <div className="p-4 space-y-3">
         <h3 className="font-semibold text-black">Pending Bills ({pendingBills.length})</h3>
-
         {pendingBills.map((bill) => {
-          // Find the actual index in the full bills array
           const billIndex = typedBills.findIndex((b) => b === bill)
           const isExpanded = expandedBill === billIndex
           const requestedAmount = toBigNumberString(bill.amount)
 
           return (
             <div key={billIndex} className="border rounded-lg bg-yellow-50 border-yellow-200">
-              {/* Bill Header */}
               <div className="p-3 cursor-pointer" onClick={() => setExpandedBill(isExpanded ? null : billIndex)}>
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
@@ -278,11 +307,8 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
                   </div>
                 </div>
               </div>
-
-              {/* Expanded Bill Details */}
               {isExpanded && (
                 <div className="border-t p-4 bg-white space-y-4">
-                  {/* Bill Document */}
                   <div>
                     <p className="text-sm font-semibold text-black mb-2">Bill Document</p>
                     <div className="p-3 bg-gray-50 rounded border">
@@ -297,11 +323,8 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
                       </a>
                     </div>
                   </div>
-
-                  {/* Approval Form */}
                   <div className="border-t pt-4">
                     <p className="text-sm font-semibold text-black mb-3">Approve Disbursement</p>
-
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium mb-1 text-black">Approved Amount (₹)</label>
@@ -321,7 +344,6 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
                           Requested: ₹{requestedAmount} | Loan Balance: ₹{remainingAmount}
                         </p>
                       </div>
-
                       <button
                         onClick={() => handleApproveBill(billIndex, requestedAmount)}
                         disabled={processing === billIndex}
@@ -329,7 +351,6 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
                       >
                         {processing === billIndex ? 'Processing...' : '✅ Approve & Disburse'}
                       </button>
-
                       <div className="bg-orange-50 p-3 rounded border border-orange-200">
                         <p className="text-xs text-orange-800">
                           <strong>⚠️ Important:</strong> Once approved, funds will be immediately disbursed to the farmer. Ensure you&apos;ve verified the bill authenticity.

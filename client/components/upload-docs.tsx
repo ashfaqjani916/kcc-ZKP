@@ -32,13 +32,11 @@ export default function UploadDocuments() {
         alert('Only JPG, PNG, or PDF files allowed')
         return
       }
-
       // Validate file size (max 10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
         alert('File size should not exceed 10MB')
         return
       }
-
       setFiles({ ...files, [docType]: selectedFile })
     }
   }
@@ -66,10 +64,16 @@ export default function UploadDocuments() {
       console.log('IPFS Hashes:', { aadhaarHash, landDocHash, incomeProofHash })
       setStatus('Storing hashes on blockchain...')
 
-      // Store IPFS hashes on blockchain
+      // Measure uploadDocuments call time
+      const start = new Date()
       await uploadDocuments({
         args: [aadhaarHash, landDocHash, incomeProofHash],
       })
+      const end = new Date()
+
+      // Console log elapsed time
+      const elapsed = (end.getTime() - start.getTime()) / 1000
+      console.log(`[Timing] uploadDocuments took ${elapsed.toFixed(3)} seconds`)
 
       setStatus('Documents uploaded successfully!')
       alert('Documents uploaded successfully! Wait for issuer verification.')
@@ -78,8 +82,9 @@ export default function UploadDocuments() {
       setFiles({ aadhaar: null, landDoc: null, incomeProof: null })
     } catch (error) {
       console.error('Error:', error)
-      // setStatus(`Error: ${error.message || 'Upload failed'}`)
-      // alert(`Error: ${error.message || 'Upload failed'}`)
+      // Optionally update UI with error message
+      // setStatus(`Error: ${error.message || 'Upload failed'}`);
+      // alert(`Error: ${error.message || 'Upload failed'}`);
     } finally {
       setUploading(false)
     }

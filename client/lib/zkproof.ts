@@ -29,7 +29,5 @@ export async function generateProof(input: {
   const c = [proof.pi_c[0], proof.pi_c[1]];
   const input_signals = publicSignals;
 
-  console.log("akproof values returnable", a, b, c, input_signals);
-
   return { a, b, c, input: input_signals };
 }
