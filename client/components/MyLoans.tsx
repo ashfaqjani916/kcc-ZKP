@@ -141,6 +141,7 @@ function LoanCard({ loanId }: { loanId: number }) {
   const requestedAmount = toBigNumberString(loan.requestedAmount as BigNumberish)
   const sanctionedAmount = toBigNumberString(loan.sanctionedAmount as BigNumberish)
   const disbursedAmount = toBigNumberString(loan.disbursedAmount as BigNumberish)
+  const disbursedTokens = toBigNumberString(loan.disbursedTokens as BigNumberish)
   const status = loan.status !== undefined ? STATUS_MAP[loan.status] : 'UNKNOWN'
 
   const isSanctioned = status === 'SANCTIONED'
@@ -178,6 +179,10 @@ function LoanCard({ loanId }: { loanId: number }) {
         <p className="text-black">
           <strong>Disbursed Amount:</strong> ₹{disbursedAmount}
         </p>
+        <p className="text-black">
+          <strong>Disbursed Tokens:</strong> ₹{disbursedTokens}
+        </p>
+
         <p className="text-black">
           <strong>Remaining:</strong> ₹{Number(sanctionedAmount) - Number(disbursedAmount)}
         </p>

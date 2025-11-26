@@ -10,8 +10,24 @@ interface IKCCVerifier {
     ) external view returns (bool);
 }
 
+interface IERC20 {
+    function transfer(
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function mintTo(address to, uint256 amount) external returns (bool);
+    function burn(uint256 amount) external returns (bool);
+}
+
 contract KCCLoanManager {
     IKCCVerifier public verifier;
+    IERC20 public creditToken;
 
     enum LoanStatus {
         IN_PROGRESS,
@@ -26,6 +42,7 @@ contract KCCLoanManager {
         string loanCategory;
         LoanStatus status;
         uint256 sanctionedAmount;
+        uint256 disbursedTokens;
         uint256 disbursedAmount;
         uint256 timestamp;
     }
@@ -59,11 +76,11 @@ contract KCCLoanManager {
     mapping(address => FarmerDocuments) public farmerDocuments;
     mapping(uint256 => BillDocument[]) public loanBills;
 
-    // ✅ Track farmers who uploaded KYC documents
+    // Track farmers who uploaded KYC docs
     address[] private farmersWithDocuments;
     mapping(address => bool) private hasFarmerUploaded;
 
-    // ✅ NEW: Track loans with bills uploaded
+    // Track loans with bills
     uint256[] private loansWithBills;
     mapping(uint256 => bool) private hasLoanBills;
 
@@ -122,8 +139,10 @@ contract KCCLoanManager {
         _;
     }
 
-    constructor(address _verifierAddress) {
+    // Constructor includes ERC20 token address
+    constructor(address _verifierAddress, address _creditTokenAddress) {
         verifier = IKCCVerifier(_verifierAddress);
+        creditToken = IERC20(_creditTokenAddress);
         issuer = msg.sender;
     }
 
@@ -154,6 +173,19 @@ contract KCCLoanManager {
 
         farmerCredentials[farmer].isRevoked = true;
         emit CredentialRevoked(farmer, block.timestamp);
+    }
+
+    function verifyFarmerProof(
+        uint256[2] memory a,
+        uint256[2][2] memory b,
+        uint256[2] memory c,
+        uint256[3] memory input
+    ) external view returns (bool) {
+        bool success = verifier.verifyProof(a, b, c, input);
+        if (!success) {
+            return false;
+        }
+        return true;
     }
 
     function uploadDocuments(
@@ -216,7 +248,6 @@ contract KCCLoanManager {
         emit CredentialIssued(farmer, msg.sender, block.timestamp);
     }
 
-    // ✅ KYC Document queries
     function getAllFarmersWithDocuments()
         external
         view
@@ -275,6 +306,7 @@ contract KCCLoanManager {
             loanCategory: loanCategory,
             status: LoanStatus.IN_PROGRESS,
             sanctionedAmount: 0,
+            disbursedTokens: 0,
             disbursedAmount: 0,
             timestamp: block.timestamp
         });
@@ -315,7 +347,24 @@ contract KCCLoanManager {
         emit LoanStatusUpdated(loanId, LoanStatus.REJECTED);
     }
 
-    // ✅ Farmer uploads bill
+    function disburseAmount(
+        uint256 amount,
+        address farmer,
+        uint256 loanId
+    ) external onlyBankOfficer returns (bool) {
+        require(farmerCredentials[farmer].isIssued, "No credential");
+        require(!farmerCredentials[farmer].isRevoked, "Revoked");
+        bool success = creditToken.burn(amount);
+        require(success, "token burning failure - disbursement failed");
+        LoanApplication storage loan = loanApplications[loanId];
+
+        loan.disbursedTokens = 0;
+        loan.disbursedAmount = loan.disbursedTokens;
+        loan.disbursedTokens = 0;
+
+        return true;
+    }
+
     function uploadBill(
         uint256 loanId,
         string memory billHash,
@@ -341,7 +390,6 @@ contract KCCLoanManager {
             })
         );
 
-        // ✅ Track this loan if first bill
         if (!hasLoanBills[loanId]) {
             loansWithBills.push(loanId);
             hasLoanBills[loanId] = true;
@@ -374,6 +422,51 @@ contract KCCLoanManager {
             "Exceeds sanctioned limit"
         );
 
+        // Transfer tokens from auditor (msg.sender) to banker
+        bool success = creditToken.transfer(bankOfficer, amount);
+        require(success, "Token transfer failed");
+
+        bill.isApproved = true;
+        bill.disbursedAmount = amount;
+        loan.disbursedTokens = amount;
+        // loan.disbursedAmount += amount;
+
+        emit FundsDisbursed(loanId, billIndex, amount, bill.billHash);
+    }
+
+    function mintTokens(address to, uint256 amount) external onlyAuditor {
+        require(to != address(0), "Invalid address");
+        bool success = creditToken.mintTo(to, amount);
+        require(success, "Minting failed");
+    }
+
+    function getTokenBalance(address account) external view returns (uint256) {
+        return creditToken.balanceOf(account);
+    }
+
+    // New function for transferFrom spending
+    function disburseFundsFrom(
+        uint256 loanId,
+        uint256 billIndex,
+        uint256 amount,
+        address payer
+    ) external onlyAuditor {
+        LoanApplication storage loan = loanApplications[loanId];
+        require(loan.status == LoanStatus.SANCTIONED, "Not sanctioned");
+        require(billIndex < loanBills[loanId].length, "Invalid bill index");
+
+        BillDocument storage bill = loanBills[loanId][billIndex];
+        require(!bill.isApproved, "Bill already processed");
+        require(amount <= bill.amount, "Amount exceeds bill request");
+        require(
+            loan.disbursedAmount + amount <= loan.sanctionedAmount,
+            "Exceeds sanctioned limit"
+        );
+
+        // Transfer tokens from payer to farmer using transferFrom
+        bool success = creditToken.transferFrom(payer, loan.farmer, amount);
+        require(success, "Token transferFrom failed");
+
         bill.isApproved = true;
         bill.disbursedAmount = amount;
         loan.disbursedAmount += amount;
@@ -381,7 +474,6 @@ contract KCCLoanManager {
         emit FundsDisbursed(loanId, billIndex, amount, bill.billHash);
     }
 
-    // ✅ Bill document queries
     function getLoanBills(
         uint256 loanId
     ) external view returns (BillDocument[] memory) {
@@ -400,17 +492,14 @@ contract KCCLoanManager {
         return loanBills[loanId].length;
     }
 
-    // ✅ NEW: Get all loans that have bills uploaded
     function getAllLoansWithBills() external view returns (uint256[] memory) {
         return loansWithBills;
     }
 
-    // ✅ NEW: Get count of loans with bills
     function getLoansWithBillsCount() external view returns (uint256) {
         return loansWithBills.length;
     }
 
-    // ✅ NEW: Pagination for loans with bills
     function getLoansWithBillsPaginated(
         uint256 offset,
         uint256 limit
