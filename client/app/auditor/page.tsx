@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import WalletConnect from '@/components/WalletConnect'
 import { useContract, useContractWrite, useContractRead, useAddress } from '@thirdweb-dev/react'
@@ -36,10 +35,10 @@ export default function AuditorDashboard() {
 
   if (!address) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
-          <h2 className="text-2xl font-bold mb-4 text-black">Auditor Dashboard</h2>
-          <p className="text-gray-600 mb-4">Please connect your wallet to continue</p>
+      <div className="min-h-screen bg-green-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-4 text-slate-900">Auditor Dashboard</h2>
+          <p className="text-slate-600 mb-4">Please connect your wallet to continue</p>
           <WalletConnect />
         </div>
       </div>
@@ -48,16 +47,17 @@ export default function AuditorDashboard() {
 
   if (!isAuditor) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-red-50 p-8 rounded-lg shadow-md max-w-md border border-red-200">
+      <div className="min-h-screen bg-green-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md border border-red-200 text-center">
           <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold mb-2 text-red-800">Access Denied</h2>
-          <p className="text-gray-700 mb-4">You are not authorized as an auditor. Only the auditor wallet can access this dashboard.</p>
-          <p className="text-sm text-gray-600 mb-4">
-            Current Auditor: <br />
+          <h2 className="text-2xl font-bold mb-2 text-red-700">Access Denied</h2>
+          <p className="text-slate-700 mb-4">Only the authorized auditor wallet can access this dashboard.</p>
+          <p className="text-sm text-slate-600 mb-4">
+            Current Auditor:
+            <br />
             <span className="font-mono text-xs text-black">{currentAuditor || 'Not set'}</span>
           </p>
-          <Link href="/" className="text-blue-600 hover:underline">
+          <Link href="/" className="text-green-700 font-medium hover:underline">
             ← Back to Home
           </Link>
         </div>
@@ -66,45 +66,48 @@ export default function AuditorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-200">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-700">
+            <Link href="/" className="text-green-700 hover:text-green-800">
               ← Back
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Auditor Dashboard</h1>
-              <p className="text-sm text-gray-600">Review bills and approve disbursements</p>
+              <h1 className="text-2xl font-bold text-slate-900">Auditor Dashboard</h1>
+              <p className="text-sm text-slate-600">Review bills and approve disbursements</p>
             </div>
           </div>
           <WalletConnect />
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600">Loans with Bills</p>
-            <p className="text-3xl font-bold text-black">{totalLoansWithBills}</p>
+      <main className="max-w-7xl mx-auto px-4 py-10 space-y-8">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+            <p className="text-sm text-slate-600">Loans with Bills</p>
+            <p className="text-3xl font-bold text-green-700">{totalLoansWithBills}</p>
           </div>
-          <div className="bg-yellow-50 p-6 rounded-lg shadow-md border border-yellow-200">
-            <p className="text-sm text-gray-600">Pending Review</p>
-            <p className="text-3xl font-bold text-yellow-700">--</p>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+            <p className="text-sm text-slate-600">Pending Review</p>
+            <p className="text-3xl font-bold text-slate-700">--</p>
           </div>
-          <div className="bg-green-50 p-6 rounded-lg shadow-md border border-green-200">
-            <p className="text-sm text-gray-600">Approved Bills</p>
-            <p className="text-3xl font-bold text-green-700">--</p>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+            <p className="text-sm text-slate-600">Approved Bills</p>
+            <p className="text-3xl font-bold text-slate-700">--</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4 text-black">Pending Bills for Review ({totalLoansWithBills})</h2>
-          <p className="text-sm text-gray-600 mb-4">Review farmer-submitted bills and approve disbursements</p>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold mb-4 text-slate-900">Pending Bills for Review ({totalLoansWithBills})</h2>
+          <p className="text-sm text-slate-600 mb-4">Review farmer-submitted bills and approve disbursements</p>
+
           {totalLoansWithBills === 0 ? (
-            <div className="bg-gray-50 rounded-lg p-8 text-center">
-              <p className="text-gray-600">No bills submitted yet</p>
-              <p className="text-sm text-gray-500 mt-2">Bills will appear here once farmers upload them</p>
+            <div className="bg-green-50 rounded-lg p-8 text-center">
+              <p className="text-slate-600">No bills submitted yet</p>
+              <p className="text-sm text-slate-500 mt-2">Bills will appear here once farmers upload them</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -117,9 +120,10 @@ export default function AuditorDashboard() {
         </div>
 
         {isAuditor && (
-          <div className="max-w-md mx-auto mt-8 bg-white border rounded-lg shadow p-6">
-            <h2 className="text-lg font-bold mb-2 text-black">Mint Tokens To Self</h2>
-            <p className="text-sm text-gray-700 mb-4">You (Auditor) can mint credit tokens for yourself for test/disbursement use.</p>
+          <div className="max-w-md mx-auto bg-white rounded-xl shadow p-6">
+            <h2 className="text-lg font-bold mb-2 text-slate-900">Mint Tokens To Self</h2>
+            <p className="text-sm text-slate-600 mb-4">Mint credit tokens for disbursement or testing.</p>
+
             <form
               onSubmit={async (e) => {
                 e.preventDefault()
@@ -131,9 +135,8 @@ export default function AuditorDashboard() {
                 try {
                   await mintTokens({ args: [address, mintAmount] })
                   setMintAmount('')
-                  alert(`Minted ${mintAmount} tokens to yourself!`)
-                } catch (err) {
-                  console.error(err)
+                  alert(`Minted ${mintAmount} tokens successfully`)
+                } catch {
                   alert('Minting failed')
                 } finally {
                   setMinting(false)
@@ -142,58 +145,40 @@ export default function AuditorDashboard() {
               className="space-y-3"
             >
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">Amount to Mint</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={mintAmount}
-                  onChange={(e) => setMintAmount(e.target.value)}
-                  required
-                  className="w-full p-2 border rounded text-black"
-                  placeholder="Enter amount..."
-                />
+                <label className="block text-sm font-medium mb-1 text-slate-900">Amount to Mint</label>
+                <input type="number" min={1} value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} required className="w-full p-2 border rounded text-slate-900" />
               </div>
-              <button type="submit" disabled={minting} className="w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800 disabled:bg-gray-400 font-semibold">
+
+              <button type="submit" disabled={minting} className="w-full bg-green-700 text-white py-2 rounded hover:bg-green-800 disabled:bg-slate-400 font-semibold">
                 {minting ? 'Minting...' : 'Mint Tokens'}
               </button>
             </form>
           </div>
         )}
 
-        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-          <h3 className="font-bold text-blue-900 mb-3">Auditor Workflow</h3>
-          <div className="space-y-3 text-sm text-blue-800">
-            <div className="flex gap-3">
-              <span className="text-2xl">1️⃣</span>
-              <div>
-                <p className="font-semibold">Review Bill</p>
-                <p>Click &quot;View Bill&quot; to see the farmer&apos;s uploaded document</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-2xl">2️⃣</span>
-              <div>
-                <p className="font-semibold">Verify Authenticity</p>
-                <p>Check if the bill is legitimate and matches the loan category</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-2xl">3️⃣</span>
-              <div>
-                <p className="font-semibold">Approve Amount</p>
-                <p>Enter the approved amount (can be less than requested)</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-2xl">4️⃣</span>
-              <div>
-                <p className="font-semibold">Disburse Funds</p>
-                <p>Click approve to release funds to the farmer</p>
-              </div>
-            </div>
+        <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+          <h3 className="font-bold text-green-900 mb-3">Auditor Workflow</h3>
+
+          <div className="space-y-3 text-sm text-green-800">
+            <Workflow step="1️⃣" title="Review Bill" text="Open & inspect the uploaded bill." />
+            <Workflow step="2️⃣" title="Verify Authenticity" text="Ensure the bill is legitimate." />
+            <Workflow step="3️⃣" title="Approve Amount" text="Enter an amount ≤ requested." />
+            <Workflow step="4️⃣" title="Disburse Funds" text="Funds release instantly to the farmer." />
           </div>
         </div>
       </main>
+    </div>
+  )
+}
+
+function Workflow({ step, title, text }: { step: string; title: string; text: string }) {
+  return (
+    <div className="flex gap-3">
+      <span className="text-2xl">{step}</span>
+      <div>
+        <p className="font-semibold">{title}</p>
+        <p>{text}</p>
+      </div>
     </div>
   )
 }
@@ -210,11 +195,9 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
 
   if (!loan) return null
 
-  const toBigNumberString = (value: BigNumberish | undefined): string => {
+  const toBigNumberString = (value: BigNumberish | undefined) => {
     if (!value) return '0'
-    if (typeof value === 'object' && value.toString) {
-      return value.toString()
-    }
+    if (typeof value === 'object' && value.toString) return value.toString()
     return String(value)
   }
 
@@ -255,9 +238,8 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
       setExpandedBill(null)
       refetchBills()
     } catch (error) {
-      console.error(error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to disburse'
-      alert(`Error: ${errorMessage}`)
+      alert('Error approving bill')
+      console.log(error)
     } finally {
       setProcessing(null)
     }
@@ -265,96 +247,95 @@ function LoanWithBillsCard({ loanId }: { loanId: number }) {
 
   return (
     <div className="border rounded-lg bg-white shadow-sm">
-      <div className="p-4 bg-gray-50 border-b">
+      <div className="p-4 bg-green-100 border-b rounded-t-lg">
         <div className="flex justify-between items-start">
           <div>
-            <p className="font-bold text-lg text-black">Loan #{loanId}</p>
-            <p className="text-xs font-mono text-gray-600 mt-1">{loan.farmer}</p>
-            <p className="text-sm text-gray-600 mt-1">
-              Category: <span className="font-medium text-black">{loan.loanCategory}</span>
+            <p className="font-bold text-lg text-slate-900">Loan #{loanId}</p>
+            <p className="text-xs font-mono text-slate-700 mt-1">{loan.farmer}</p>
+            <p className="text-sm text-slate-700 mt-1">
+              Category: <span className="font-medium text-slate-900">{loan.loanCategory}</span>
             </p>
           </div>
+
           <div className="text-right">
-            <p className="text-sm text-gray-600">Remaining Balance</p>
+            <p className="text-sm text-slate-600">Remaining Balance</p>
             <p className="text-xl font-bold text-green-700">₹{remainingAmount}</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               ₹{disbursedAmount} / ₹{sanctionedAmount}
             </p>
           </div>
         </div>
       </div>
+
       <div className="p-4 space-y-3">
-        <h3 className="font-semibold text-black">Pending Bills ({pendingBills.length})</h3>
+        <h3 className="font-semibold text-slate-900">Pending Bills ({pendingBills.length})</h3>
+
         {pendingBills.map((bill) => {
           const billIndex = typedBills.findIndex((b) => b === bill)
           const isExpanded = expandedBill === billIndex
           const requestedAmount = toBigNumberString(bill.amount)
 
           return (
-            <div key={billIndex} className="border rounded-lg bg-yellow-50 border-yellow-200">
+            <div key={billIndex} className="border rounded-lg bg-green-50 border-green-200">
               <div className="p-3 cursor-pointer" onClick={() => setExpandedBill(isExpanded ? null : billIndex)}>
                 <div className="flex justify-between items-center">
-                  <div className="flex-1">
-                    <p className="font-semibold text-black">Bill #{billIndex + 1}</p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Requested Amount: <span className="font-bold">₹{requestedAmount}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">Uploaded: {new Date(Number(bill.uploadedAt) * 1000).toLocaleString()}</p>
+                  <div>
+                    <p className="font-semibold text-slate-900">Bill #{billIndex + 1}</p>
+                    <p className="text-sm text-slate-700 mt-1">Requested Amount: ₹{requestedAmount}</p>
+                    <p className="text-xs text-slate-600 mt-1">Uploaded: {new Date(Number(bill.uploadedAt) * 1000).toLocaleString()}</p>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold px-3 py-1 rounded bg-yellow-600 text-white">Pending Review</span>
-                    <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                    <span className="text-xs font-semibold px-3 py-1 rounded bg-green-700 text-white">Pending</span>
+                    <span className="text-slate-500">{isExpanded ? '▼' : '▶'}</span>
                   </div>
                 </div>
               </div>
+
               {isExpanded && (
                 <div className="border-t p-4 bg-white space-y-4">
                   <div>
-                    <p className="text-sm font-semibold text-black mb-2">Bill Document</p>
-                    <div className="p-3 bg-gray-50 rounded border">
-                      <p className="text-xs font-mono text-gray-600 break-all mb-2">{bill.billHash}</p>
+                    <p className="text-sm font-semibold text-slate-900 mb-2">Bill Document</p>
+                    <div className="p-3 bg-green-50 rounded border">
+                      <p className="text-xs font-mono text-slate-700 break-all mb-2">{bill.billHash}</p>
                       <a
                         href={`https://ipfs.io/ipfs/${bill.billHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                        className="inline-block bg-green-700 text-white px-4 py-2 rounded text-sm hover:bg-green-800"
                       >
-                        📄 View Bill Document →
+                        📄 View Bill →
                       </a>
                     </div>
                   </div>
+
                   <div className="border-t pt-4">
-                    <p className="text-sm font-semibold text-black mb-3">Approve Disbursement</p>
+                    <p className="text-sm font-semibold text-slate-900 mb-3">Approve Disbursement</p>
+
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium mb-1 text-black">Approved Amount (₹)</label>
+                        <label className="block text-sm font-medium mb-1 text-slate-900">Approved Amount (₹)</label>
                         <input
                           type="number"
                           value={approvedAmount[billIndex] || requestedAmount}
-                          onChange={(e) =>
-                            setApprovedAmount((prev) => ({
-                              ...prev,
-                              [billIndex]: e.target.value,
-                            }))
-                          }
-                          placeholder={`Max: ₹${Math.min(Number(requestedAmount), remainingAmount)}`}
-                          className="w-full p-2 border rounded text-black"
+                          onChange={(e) => setApprovedAmount((prev) => ({ ...prev, [billIndex]: e.target.value }))}
+                          className="w-full p-2 border rounded text-slate-900"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Requested: ₹{requestedAmount} | Loan Balance: ₹{remainingAmount}
                         </p>
                       </div>
+
                       <button
                         onClick={() => handleApproveBill(billIndex, requestedAmount)}
                         disabled={processing === billIndex}
-                        className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold"
+                        className="w-full bg-green-700 text-white py-3 rounded-lg hover:bg-green-800 disabled:bg-slate-400 font-semibold"
                       >
-                        {processing === billIndex ? 'Processing...' : '✅ Approve & Disburse'}
+                        {processing === billIndex ? 'Processing...' : 'Approve & Disburse'}
                       </button>
+
                       <div className="bg-orange-50 p-3 rounded border border-orange-200">
-                        <p className="text-xs text-orange-800">
-                          <strong>⚠️ Important:</strong> Once approved, funds will be immediately disbursed to the farmer. Ensure you&apos;ve verified the bill authenticity.
-                        </p>
+                        <p className="text-xs text-orange-800">⚠️ Once approved, funds will be immediately disbursed.</p>
                       </div>
                     </div>
                   </div>
