@@ -23,6 +23,7 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
     function mintTo(address to, uint256 amount) external returns (bool);
     function burn(uint256 amount) external returns (bool);
+    function burnFrom(address account, uint256 amount) external returns (bool);
 }
 
 contract KCCLoanManager {
@@ -76,11 +77,9 @@ contract KCCLoanManager {
     mapping(address => FarmerDocuments) public farmerDocuments;
     mapping(uint256 => BillDocument[]) public loanBills;
 
-    // Track farmers who uploaded KYC docs
     address[] private farmersWithDocuments;
     mapping(address => bool) private hasFarmerUploaded;
 
-    // Track loans with bills
     uint256[] private loansWithBills;
     mapping(uint256 => bool) private hasLoanBills;
 
@@ -139,7 +138,6 @@ contract KCCLoanManager {
         _;
     }
 
-    // Constructor includes ERC20 token address
     constructor(address _verifierAddress, address _creditTokenAddress) {
         verifier = IKCCVerifier(_verifierAddress);
         creditToken = IERC20(_creditTokenAddress);
@@ -354,7 +352,7 @@ contract KCCLoanManager {
     ) external onlyBankOfficer returns (bool) {
         require(farmerCredentials[farmer].isIssued, "No credential");
         require(!farmerCredentials[farmer].isRevoked, "Revoked");
-        bool success = creditToken.burn(amount);
+        bool success = creditToken.burnFrom(msg.sender, amount);
         require(success, "token burning failure - disbursement failed");
         LoanApplication storage loan = loanApplications[loanId];
 
@@ -422,14 +420,12 @@ contract KCCLoanManager {
             "Exceeds sanctioned limit"
         );
 
-        // Transfer tokens from auditor (msg.sender) to banker
         bool success = creditToken.transfer(bankOfficer, amount);
         require(success, "Token transfer failed");
 
         bill.isApproved = true;
         bill.disbursedAmount = amount;
         loan.disbursedTokens = amount;
-        // loan.disbursedAmount += amount;
 
         emit FundsDisbursed(loanId, billIndex, amount, bill.billHash);
     }
@@ -444,7 +440,6 @@ contract KCCLoanManager {
         return creditToken.balanceOf(account);
     }
 
-    // New function for transferFrom spending
     function disburseFundsFrom(
         uint256 loanId,
         uint256 billIndex,
@@ -463,7 +458,6 @@ contract KCCLoanManager {
             "Exceeds sanctioned limit"
         );
 
-        // Transfer tokens from payer to farmer using transferFrom
         bool success = creditToken.transferFrom(payer, loan.farmer, amount);
         require(success, "Token transferFrom failed");
 
