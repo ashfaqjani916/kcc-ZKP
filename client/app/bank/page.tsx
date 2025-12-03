@@ -8,9 +8,9 @@ import Link from 'next/link'
 
 const STATUS_MAP = ['IN_PROGRESS', 'UNDER_REVIEW', 'SANCTIONED', 'REJECTED']
 const STATUS_COLORS = {
-  0: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  1: 'bg-blue-100 text-blue-800 border-blue-200',
-  2: 'bg-green-100 text-green-800 border-green-200',
+  0: 'bg-green-100 text-green-800 border-green-200',
+  1: 'bg-green-200 text-green-900 border-green-300',
+  2: 'bg-green-300 text-green-900 border-green-400',
   3: 'bg-red-100 text-red-800 border-red-200',
 }
 
@@ -23,22 +23,20 @@ export default function BankDashboard() {
   const address = useAddress()
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
 
-  // Read current bank officer
   const { data: currentBankOfficer } = useContractRead(contract, 'bankOfficer')
   const { data: loanCounter } = useContractRead(contract, 'loanCounter')
 
-  // Contract write functions
   const { mutateAsync: reviewLoan } = useContractWrite(contract, 'reviewLoan')
   const { mutateAsync: sanctionLoan } = useContractWrite(contract, 'sanctionLoan')
   const { mutateAsync: rejectLoan } = useContractWrite(contract, 'rejectLoan')
+  const { mutateAsync: disburseAmount } = useContractWrite(contract, 'disburseAmount')
 
-  // State
   const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
   const [sanctionAmount, setSanctionAmount] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<number | null>(null)
+  const [disbursedLoans, setDisbursedLoans] = useState<number[]>([])
 
-  // Check if connected wallet is the bank officer
   const isBankOfficer = address && currentBankOfficer && address.toLowerCase() === currentBankOfficer.toLowerCase()
 
   const handleReviewLoan = async (loanId: number) => {
@@ -47,11 +45,6 @@ export default function BankDashboard() {
       await reviewLoan({ args: [loanId] })
       alert(`Loan #${loanId} moved to UNDER_REVIEW`)
       setSelectedLoanId(null)
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
     } finally {
       setLoading(null)
     }
@@ -69,31 +62,32 @@ export default function BankDashboard() {
       alert(`Loan #${loanId} sanctioned with amount ₹${sanctionAmount}`)
       setSelectedLoanId(null)
       setSanctionAmount('')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
     } finally {
       setLoading(null)
     }
   }
 
   const handleRejectLoan = async (loanId: number) => {
-    if (!confirm(`Are you sure you want to reject Loan #${loanId}?`)) {
-      return
-    }
+    if (!confirm(`Reject Loan #${loanId}?`)) return
 
     setLoading(`reject-${loanId}`)
     try {
       await rejectLoan({ args: [loanId] })
       alert(`Loan #${loanId} rejected`)
       setSelectedLoanId(null)
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error(error)
-        alert(`Error: ${error.message}`)
-      }
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleDisburseAmount = async (loanId: number, amount: string, farmerAddress: string) => {
+    if (!confirm(`Burn ${amount} tokens for Loan #${loanId}?`)) return
+
+    setLoading(`disburse-${loanId}`)
+    try {
+      await disburseAmount({ args: [amount, farmerAddress, loanId] })
+      alert(`Burned ${amount} tokens for Loan #${loanId}`)
+      setDisbursedLoans((prev) => [...prev, loanId])
     } finally {
       setLoading(null)
     }
@@ -101,10 +95,10 @@ export default function BankDashboard() {
 
   if (!address) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
-          <h2 className="text-2xl font-bold mb-4 text-black">Bank Officer Dashboard</h2>
-          <p className="text-gray-600 mb-4">Please connect your wallet to continue</p>
+      <div className="min-h-screen bg-green-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-4 text-slate-900">Bank Officer Dashboard</h2>
+          <p className="text-slate-600 mb-4">Please connect your wallet to continue</p>
           <WalletConnect />
         </div>
       </div>
@@ -113,16 +107,17 @@ export default function BankDashboard() {
 
   if (!isBankOfficer) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-red-50 p-8 rounded-lg shadow-md max-w-md border border-red-200">
-          <div className="text-4xl mb-4 text-black">⚠</div>
-          <h2 className="text-2xl font-bold mb-2 text-red-800">Access Denied</h2>
-          <p className="text-gray-700 mb-4">You are not authorized as a bank officer. Only the bank officer wallet can access this dashboard.</p>
-          <p className="text-sm text-gray-600 mb-4">
-            Current Bank Officer: <br />
+      <div className="min-h-screen bg-green-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md border border-red-200 text-center">
+          <div className="text-4xl mb-4 text-red-600">⚠</div>
+          <h2 className="text-2xl font-bold mb-2 text-red-700">Access Denied</h2>
+          <p className="text-slate-700 mb-4">Only the bank officer wallet can access this dashboard.</p>
+          <p className="text-sm text-slate-600 mb-4">
+            Current Bank Officer:
+            <br />
             <span className="font-mono text-xs text-black">{currentBankOfficer || 'Not set'}</span>
           </p>
-          <Link href="/" className="text-blue-600 hover:underline">
+          <Link href="/" className="text-green-700 hover:underline">
             ← Back to Home
           </Link>
         </div>
@@ -130,101 +125,123 @@ export default function BankDashboard() {
     )
   }
 
-  const totalLoans = loanCounter ? (typeof loanCounter === 'object' && 'toNumber' in loanCounter && typeof loanCounter.toNumber === 'function' ? loanCounter.toNumber() : Number(loanCounter)) : 0
+  const totalLoans = loanCounter && typeof loanCounter === 'object' && 'toNumber' in loanCounter && typeof loanCounter.toNumber === 'function' ? loanCounter.toNumber() : Number(loanCounter || 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-200">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-700">
+            <Link href="/" className="text-green-700 hover:text-green-800">
               ← Back
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Bank Officer Dashboard</h1>
-              <p className="text-sm text-gray-600">Review, sanction, or reject loan applications</p>
+              <h1 className="text-2xl font-bold text-slate-900">Bank Officer Dashboard</h1>
+              <p className="text-sm text-slate-600">Review, sanction, or reject loan applications</p>
             </div>
           </div>
           <WalletConnect />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <p className="text-sm text-gray-600">Total Loans</p>
-            <p className="text-3xl font-bold text-black">{totalLoans}</p>
+      <main className="max-w-7xl mx-auto px-4 py-10 space-y-8">
+        <div className="grid md:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow text-center">
+            <p className="text-sm text-slate-600">Total Loans</p>
+            <p className="text-3xl font-bold text-green-700">{totalLoans}</p>
           </div>
-          <div className="bg-yellow-50 p-6 rounded-lg shadow-md border border-yellow-200">
-            <p className="text-sm text-gray-600">In Progress</p>
-            <p className="text-3xl font-bold text-yellow-700">--</p>
+
+          <div className="bg-green-50 p-6 rounded-xl shadow text-center border border-green-200">
+            <p className="text-sm text-green-700">In Progress</p>
+            <p className="text-3xl font-bold text-green-800">--</p>
           </div>
-          <div className="bg-blue-50 p-6 rounded-lg shadow-md border border-blue-200">
-            <p className="text-sm text-gray-600">Under Review</p>
-            <p className="text-3xl font-bold text-blue-700">--</p>
+
+          <div className="bg-green-100 p-6 rounded-xl shadow text-center border border-green-300">
+            <p className="text-sm text-green-700">Under Review</p>
+            <p className="text-3xl font-bold text-green-900">--</p>
           </div>
-          <div className="bg-green-50 p-6 rounded-lg shadow-md border border-green-200">
-            <p className="text-sm text-gray-600">Sanctioned</p>
-            <p className="text-3xl font-bold text-green-700">--</p>
+
+          <div className="bg-green-200 p-6 rounded-xl shadow text-center border border-green-300">
+            <p className="text-sm text-green-800">Sanctioned</p>
+            <p className="text-3xl font-bold text-green-900">--</p>
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="bg-white rounded-xl shadow p-4">
           <div className="flex gap-2 items-center">
-            <span className="text-sm font-medium text-black">Filter by status:</span>
-            <button onClick={() => setFilterStatus(null)} className={`px-3 py-1 rounded text-sm ${filterStatus === null ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-700'}`}>
+            <span className="text-sm font-medium text-slate-900">Filter by status:</span>
+
+            <button onClick={() => setFilterStatus(null)} className={`px-3 py-1 rounded text-sm ${filterStatus === null ? 'bg-green-700 text-white' : 'bg-green-100 text-green-800'}`}>
               All
             </button>
-            <button onClick={() => setFilterStatus(0)} className={`px-3 py-1 rounded text-sm ${filterStatus === 0 ? 'bg-yellow-600 text-white' : 'bg-yellow-100 text-yellow-800'}`}>
+
+            <button onClick={() => setFilterStatus(0)} className={`px-3 py-1 rounded text-sm ${filterStatus === 0 ? 'bg-green-700 text-white' : 'bg-green-100 text-green-800'}`}>
               In Progress
             </button>
-            <button onClick={() => setFilterStatus(1)} className={`px-3 py-1 rounded text-sm ${filterStatus === 1 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'}`}>
+
+            <button onClick={() => setFilterStatus(1)} className={`px-3 py-1 rounded text-sm ${filterStatus === 1 ? 'bg-green-700 text-white' : 'bg-green-200 text-green-900'}`}>
               Under Review
             </button>
-            <button onClick={() => setFilterStatus(2)} className={`px-3 py-1 rounded text-sm ${filterStatus === 2 ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800'}`}>
+
+            <button onClick={() => setFilterStatus(2)} className={`px-3 py-1 rounded text-sm ${filterStatus === 2 ? 'bg-green-700 text-white' : 'bg-green-300 text-green-900'}`}>
               Sanctioned
             </button>
-            <button onClick={() => setFilterStatus(3)} className={`px-3 py-1 rounded text-sm ${filterStatus === 3 ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800'}`}>
+
+            <button onClick={() => setFilterStatus(3)} className={`px-3 py-1 rounded text-sm ${filterStatus === 3 ? 'bg-red-700 text-white' : 'bg-red-100 text-red-800'}`}>
               Rejected
             </button>
           </div>
         </div>
 
-        {/* Loan List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4 text-black">Loan Applications</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 bg-white rounded-xl shadow p-6">
+            <h2 className="text-xl font-bold mb-4 text-slate-900">Loan Applications</h2>
 
-          {totalLoans === 0 ? (
-            <p className="text-gray-600 text-center py-8">No loan applications yet</p>
-          ) : (
-            <div className="space-y-4">
-              {Array.from({ length: totalLoans }, (_, i) => i).map((loanId) => (
-                <LoanCard
-                  key={loanId}
-                  loanId={loanId}
-                  filterStatus={filterStatus}
-                  selectedLoanId={selectedLoanId}
-                  setSelectedLoanId={setSelectedLoanId}
-                  sanctionAmount={sanctionAmount}
-                  setSanctionAmount={setSanctionAmount}
-                  loading={loading}
-                  onReview={handleReviewLoan}
-                  onSanction={handleSanctionLoan}
-                  onReject={handleRejectLoan}
-                />
-              ))}
-            </div>
-          )}
+            {totalLoans === 0 ? (
+              <p className="text-slate-600 text-center py-8">No loan applications yet</p>
+            ) : (
+              <div className="space-y-4">
+                {Array.from({ length: totalLoans }, (_, i) => i).map((loanId) => (
+                  <LoanCard
+                    key={loanId}
+                    loanId={loanId}
+                    filterStatus={filterStatus}
+                    selectedLoanId={selectedLoanId}
+                    setSelectedLoanId={setSelectedLoanId}
+                    sanctionAmount={sanctionAmount}
+                    setSanctionAmount={setSanctionAmount}
+                    loading={loading}
+                    onReview={handleReviewLoan}
+                    onSanction={handleSanctionLoan}
+                    onReject={handleRejectLoan}
+                    onDisburse={handleDisburseAmount}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-6 h-fit">
+            <h2 className="text-xl font-bold mb-4 text-slate-900">Disbursed Loans (Burned)</h2>
+
+            {disbursedLoans.length === 0 ? (
+              <p className="text-slate-500 text-sm text-center py-4">No loans disbursed yet</p>
+            ) : (
+              <ul className="space-y-2">
+                {disbursedLoans.map((id) => (
+                  <li key={id} className="flex justify-between items-center p-3 bg-orange-50 rounded border border-orange-100">
+                    <span className="font-medium text-orange-900">Loan #{id}</span>
+                    <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded">Burned 🔥</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
-        {/* Help */}
-        <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-          <h3 className="font-bold text-purple-900 mb-2">Bank Officer Actions</h3>
-          <ul className="text-sm text-purple-800 space-y-1 list-disc list-inside">
+        <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+          <h3 className="font-bold text-green-900 mb-2">Bank Officer Actions</h3>
+          <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
             <li>
               <strong>Review:</strong> Move IN_PROGRESS loans to UNDER_REVIEW
             </li>
@@ -234,8 +251,11 @@ export default function BankDashboard() {
             <li>
               <strong>Reject:</strong> Reject any loan at any stage
             </li>
-            <li>Farmers cannot apply for loans without credentials</li>
-            <li>ZK-Proofs ensure privacy while proving eligibility</li>
+            <li>
+              <strong>Disburse:</strong> Burn tokens for sanctioned loans
+            </li>
+            <li>Farmers must have credentials to apply</li>
+            <li>ZK-Proofs ensure privacy and secure verification</li>
           </ul>
         </div>
       </main>
@@ -243,7 +263,6 @@ export default function BankDashboard() {
   )
 }
 
-// Loan Card Component
 function LoanCard({
   loanId,
   filterStatus,
@@ -255,6 +274,7 @@ function LoanCard({
   onReview,
   onSanction,
   onReject,
+  onDisburse,
 }: {
   loanId: number
   filterStatus: number | null
@@ -263,98 +283,85 @@ function LoanCard({
   sanctionAmount: string
   setSanctionAmount: (amount: string) => void
   loading: string | null
-  onReview: (loanId: number) => void
-  onSanction: (loanId: number) => void
-  onReject: (loanId: number) => void
+  onReview: (loanId: number) => Promise<void>
+  onSanction: (loanId: number) => Promise<void>
+  onReject: (loanId: number) => Promise<void>
+  onDisburse: (loanId: number, amount: string, farmerAddress: string) => Promise<void>
 }) {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
   const { data: loan, isLoading } = useContractRead(contract, 'loanApplications', [loanId])
 
   if (isLoading) {
-    return <div className="p-4 border rounded-lg bg-gray-50 text-black">Loading loan #{loanId}...</div>
+    return <div className="p-4 border rounded-lg bg-green-50 text-slate-900">Loading loan #{loanId}...</div>
   }
 
   if (!loan) return null
 
-  // Filter check
   if (filterStatus !== null && loan.status !== filterStatus) {
     return null
   }
 
-  const toBigNumberString = (value: BigNumberish | undefined): string => {
-    if (!value) return '0'
-    if (typeof value === 'object' && value.toString) {
-      return value.toString()
-    }
-    return String(value)
-  }
+  const toBigNumberString = (value: BigNumberish | undefined) => (value && typeof value === 'object' && value.toString ? value.toString() : String(value || '0'))
 
-  const requestedAmount = toBigNumberString(loan.requestedAmount as BigNumberish)
-  const sanctionedAmount = toBigNumberString(loan.sanctionedAmount as BigNumberish)
-  const disbursedAmount = toBigNumberString(loan.disbursedAmount as BigNumberish)
-  const status = loan.status !== undefined ? STATUS_MAP[loan.status] : 'UNKNOWN'
-  const statusColor = STATUS_COLORS[loan.status as keyof typeof STATUS_COLORS] || 'bg-gray-100'
+  const requestedAmount = toBigNumberString(loan.requestedAmount)
+  const sanctionedAmountStr = toBigNumberString(loan.sanctionedAmount)
+  const disbursedAmountStr = toBigNumberString(loan.disbursedAmount)
 
-  const isExpanded = selectedLoanId === loanId
+  const status = STATUS_MAP[loan.status]
+  const statusColor = STATUS_COLORS[loan.status as keyof typeof STATUS_COLORS] || 'bg-green-100'
+  const isOpen = selectedLoanId === loanId
 
   return (
     <div className={`border rounded-lg ${statusColor}`}>
-      {/* Card Header */}
-      <div className="p-4 cursor-pointer" onClick={() => setSelectedLoanId(isExpanded ? null : loanId)}>
+      <div className="p-4 cursor-pointer" onClick={() => setSelectedLoanId(isOpen ? null : loanId)}>
         <div className="flex justify-between items-start">
           <div>
-            <p className="font-bold text-lg text-black">Loan #{loanId}</p>
-            <p className="text-sm font-mono text-gray-600">{loan.farmer}</p>
+            <p className="font-bold text-lg text-slate-900">Loan #{loanId}</p>
+            <p className="text-sm font-mono text-slate-700">{loan.farmer}</p>
           </div>
           <div className="text-right">
-            <span className="text-xs font-semibold px-3 py-1 rounded bg-white text-black">{status}</span>
-            <p className="text-sm mt-1 text-black">₹{requestedAmount}</p>
+            <span className="text-xs font-semibold px-3 py-1 rounded bg-white text-green-900 border">{status}</span>
+            <p className="text-sm mt-1 text-slate-900">₹{requestedAmount}</p>
           </div>
         </div>
-        <div className="mt-2 text-sm text-gray-600">
-          <span className="font-medium text-black">{loan.loanCategory}</span>
-        </div>
+        <p className="mt-2 text-sm text-slate-700 font-medium">{loan.loanCategory}</p>
       </div>
 
-      {/* Expanded Details & Actions */}
-      {isExpanded && (
+      {isOpen && (
         <div className="border-t p-4 bg-white">
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div className="space-y-2 text-sm">
-              <p className="text-black">
+          <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm">
+            <div className="space-y-2">
+              <p className="text-slate-900">
                 <strong>Requested:</strong> ₹{requestedAmount}
               </p>
-              <p className="text-black">
-                <strong>Sanctioned:</strong> ₹{sanctionedAmount}
+              <p className="text-slate-900">
+                <strong>Sanctioned:</strong> ₹{sanctionedAmountStr}
               </p>
-              <p className="text-black">
-                <strong>Disbursed:</strong> ₹{disbursedAmount}
+              <p className="text-slate-900">
+                <strong>Disbursed:</strong> ₹{disbursedAmountStr}
               </p>
             </div>
-            <div className="space-y-2 text-sm">
-              <p className="text-black">
+            <div className="space-y-2">
+              <p className="text-slate-900">
                 <strong>Category:</strong> {loan.loanCategory}
               </p>
-              <p className="text-black">
+              <p className="text-slate-900">
                 <strong>Status:</strong> {status}
               </p>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="space-y-3">
-            {/* Review Button (for IN_PROGRESS loans) */}
             {loan.status === 0 && (
               <button
                 onClick={() => onReview(loanId)}
                 disabled={loading === `review-${loanId}`}
-                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 font-semibold"
+                className="w-full bg-green-700 text-white py-2 rounded hover:bg-green-800 disabled:bg-slate-400 font-semibold"
               >
                 {loading === `review-${loanId}` ? 'Processing...' : 'Move to Under Review'}
               </button>
             )}
 
-            {/* Sanction Button (for UNDER_REVIEW loans) */}
             {loan.status === 1 && (
               <>
                 <input
@@ -362,31 +369,43 @@ function LoanCard({
                   placeholder="Enter sanctioned amount (₹)"
                   value={sanctionAmount}
                   onChange={(e) => setSanctionAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full p-2 border rounded text-black"
+                  className="w-full p-2 border rounded text-slate-900"
                 />
                 <button
                   onClick={() => onSanction(loanId)}
                   disabled={loading === `sanction-${loanId}`}
-                  className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:bg-gray-400 font-semibold"
+                  className="w-full bg-green-700 text-white py-2 rounded hover:bg-green-800 disabled:bg-slate-400 font-semibold"
                 >
                   {loading === `sanction-${loanId}` ? 'Processing...' : 'Sanction Loan'}
                 </button>
               </>
             )}
 
-            {/* Reject Button (always available except REJECTED) */}
+            {loan.status === 2 && (
+              <div className="pt-2 border-t mt-2">
+                <p className="text-xs text-slate-600 mb-2">Disburse Funds (Burn Tokens)</p>
+                <button
+                  onClick={() => onDisburse(loanId, disbursedAmountStr !== '0' ? disbursedAmountStr : sanctionedAmountStr, loan.farmer)}
+                  disabled={loading === `disburse-${loanId}`}
+                  className="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700 disabled:bg-slate-400 font-semibold flex items-center justify-center gap-2"
+                >
+                  <span>🔥</span>
+                  {loading === `disburse-${loanId}` ? 'Burning...' : 'Burn Tokens'}
+                </button>
+              </div>
+            )}
+
             {loan.status !== 3 && (
               <button
                 onClick={() => onReject(loanId)}
                 disabled={loading === `reject-${loanId}`}
-                className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 disabled:bg-gray-400 font-semibold"
+                className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 disabled:bg-slate-400 font-semibold"
               >
                 {loading === `reject-${loanId}` ? 'Processing...' : 'Reject Loan'}
               </button>
             )}
 
-            {/* Already actioned loans */}
-            {(loan.status === 2 || loan.status === 3) && <div className="text-center text-sm text-gray-600 py-2">No actions available for {status} loans</div>}
+            {loan.status === 3 && <div className="text-center text-sm text-slate-600 py-2">No actions available for {status} loans</div>}
           </div>
         </div>
       )}

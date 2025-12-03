@@ -7,39 +7,33 @@ import UploadDocuments from '@/components/upload-docs'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-200">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-700">
+            <Link href="/" className="text-green-700 hover:text-green-800">
               ← Back
             </Link>
+
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Farmer Dashboard</h1>
-              <p className="text-sm text-gray-600">Apply for loans and track your applications</p>
+              <h1 className="text-2xl font-bold text-slate-900">Farmer Dashboard</h1>
+              <p className="text-sm text-slate-600">Apply for loans and track your applications</p>
             </div>
           </div>
+
           <WalletConnect />
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        {/* Credential Status */}
         <CheckCredential />
 
-        {/* Loan Application */}
         <LoanApplication />
 
         <UploadDocuments />
 
-        {/* <ViewDocuments farmerAddress={} /> */}
-
-        {/* My Loans */}
         <MyLoans />
 
-        {/* Help Section */}
         <div className="bg-green-50 rounded-lg p-6 border border-green-200">
           <h3 className="font-bold text-green-900 mb-2">Farmer Guidelines</h3>
           <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">

@@ -30,8 +30,8 @@ export default function MyLoans() {
   if (!address) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4 text-black">My Loans</h2>
-        <p className="text-gray-600">Connect your wallet to view loans</p>
+        <h2 className="text-2xl font-bold mb-4 text-slate-900">My Loans</h2>
+        <p className="text-slate-600">Connect your wallet to view loans</p>
       </div>
     )
   }
@@ -39,8 +39,8 @@ export default function MyLoans() {
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4 text-black">My Loans</h2>
-        <p className="text-gray-600">Loading...</p>
+        <h2 className="text-2xl font-bold mb-4 text-slate-900">My Loans</h2>
+        <p className="text-slate-600">Loading...</p>
       </div>
     )
   }
@@ -48,15 +48,15 @@ export default function MyLoans() {
   if (!loanIds || loanIds.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-4 text-black">My Loans</h2>
-        <p className="text-gray-600">No loans found</p>
+        <h2 className="text-2xl font-bold mb-4 text-slate-900">My Loans</h2>
+        <p className="text-slate-600">No loans found</p>
       </div>
     )
   }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-4 text-black">My Loans ({loanIds.length})</h2>
+      <h2 className="text-2xl font-bold mb-4 text-slate-900">My Loans ({loanIds.length})</h2>
       <div className="space-y-4">
         {(loanIds as BigNumberish[]).map((loanId: BigNumberish, index: number) => {
           const id = typeof loanId === 'object' && loanId.toNumber ? loanId.toNumber() : Number(loanId)
@@ -79,6 +79,7 @@ function LoanCard({ loanId }: { loanId: number }) {
   const [billFile, setBillFile] = useState<File | null>(null)
   const [billAmount, setBillAmount] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [status, setStatus] = useState('')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -93,15 +94,13 @@ function LoanCard({ loanId }: { loanId: number }) {
     }
 
     setUploading(true)
+    setStatus('Uploading to IPFS...')
     try {
-      // Upload to IPFS
-      console.log('Uploading to IPFS...')
       const uploadResult = await uploadToIPFS({ data: [billFile] })
       const ipfsHash = uploadResult[0].replace('ipfs://', '')
       console.log('IPFS Hash:', ipfsHash)
 
-      // Upload to blockchain
-      console.log('Uploading to blockchain...')
+      setStatus('Storing on blockchain...')
       await uploadBill({
         args: [loanId, ipfsHash, billAmount],
       })
@@ -111,10 +110,12 @@ function LoanCard({ loanId }: { loanId: number }) {
       setBillAmount('')
       setShowUpload(false)
       refetchBills()
+      setStatus('Uploaded successfully')
     } catch (error) {
       console.error(error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload bill'
       alert(`Error: ${errorMessage}`)
+      setStatus('Error uploading bill')
     } finally {
       setUploading(false)
     }
@@ -122,8 +123,8 @@ function LoanCard({ loanId }: { loanId: number }) {
 
   if (isLoading) {
     return (
-      <div className="border rounded p-4 mb-4 bg-gray-50">
-        <p className="text-black">Loading loan #{loanId}...</p>
+      <div className="border rounded p-4 mb-4 bg-green-50">
+        <p className="text-slate-900">Loading loan #{loanId}...</p>
       </div>
     )
   }
@@ -142,73 +143,71 @@ function LoanCard({ loanId }: { loanId: number }) {
   const sanctionedAmount = toBigNumberString(loan.sanctionedAmount as BigNumberish)
   const disbursedAmount = toBigNumberString(loan.disbursedAmount as BigNumberish)
   const disbursedTokens = toBigNumberString(loan.disbursedTokens as BigNumberish)
-  const status = loan.status !== undefined ? STATUS_MAP[loan.status] : 'UNKNOWN'
+  const statusLabel = loan.status !== undefined ? STATUS_MAP[loan.status] : 'UNKNOWN'
 
-  const isSanctioned = status === 'SANCTIONED'
+  const isSanctioned = statusLabel === 'SANCTIONED'
   const typedBills = (bills as BillDocument[]) || []
 
   return (
     <div className="border rounded-lg p-4 bg-white shadow-sm">
       <div className="flex justify-between items-start mb-2">
-        <p className="text-lg font-bold text-black">Loan #{loanId}</p>
+        <p className="text-lg font-bold text-slate-900">Loan #{loanId}</p>
         <span
           className={`text-xs font-semibold px-2 py-1 rounded ${
-            status === 'SANCTIONED'
+            statusLabel === 'SANCTIONED'
               ? 'bg-green-100 text-green-800'
-              : status === 'REJECTED'
+              : statusLabel === 'REJECTED'
               ? 'bg-red-100 text-red-800'
-              : status === 'UNDER_REVIEW'
-              ? 'bg-blue-100 text-blue-800'
+              : statusLabel === 'UNDER_REVIEW'
+              ? 'bg-green-50 text-green-800'
               : 'bg-yellow-100 text-yellow-800'
           }`}
         >
-          {status}
+          {statusLabel}
         </span>
       </div>
 
       <div className="space-y-1 text-sm mb-4">
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Category:</strong> {loan.loanCategory}
         </p>
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Requested Amount:</strong> ₹{requestedAmount}
         </p>
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Sanctioned Amount:</strong> ₹{sanctionedAmount}
         </p>
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Disbursed Amount:</strong> ₹{disbursedAmount}
         </p>
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Disbursed Tokens:</strong> ₹{disbursedTokens}
         </p>
-
-        <p className="text-black">
+        <p className="text-slate-900">
           <strong>Remaining:</strong> ₹{Number(sanctionedAmount) - Number(disbursedAmount)}
         </p>
       </div>
 
-      {/* Bills Section */}
       {typedBills.length > 0 && (
         <div className="mb-4">
-          <h3 className="font-semibold text-black mb-2">Uploaded Bills ({typedBills.length})</h3>
+          <h3 className="font-semibold text-slate-900 mb-2">Uploaded Bills ({typedBills.length})</h3>
           <div className="space-y-2">
             {typedBills.map((bill, index) => (
-              <div key={index} className="p-3 bg-gray-50 rounded border text-sm">
+              <div key={index} className="p-3 bg-green-50 rounded border text-sm">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <p className="text-black">
+                    <p className="text-slate-900">
                       <strong>Bill #{index + 1}</strong>
                     </p>
-                    <p className="text-gray-600 text-xs font-mono break-all mt-1">{bill.billHash}</p>
-                    <p className="text-black mt-1">Amount: ₹{toBigNumberString(bill.amount)}</p>
-                    <p className="text-black">Disbursed: ₹{toBigNumberString(bill.disbursedAmount)}</p>
+                    <p className="text-slate-700 text-xs font-mono break-all mt-1">{bill.billHash}</p>
+                    <p className="text-slate-900 mt-1">Amount: ₹{toBigNumberString(bill.amount)}</p>
+                    <p className="text-slate-900">Disbursed: ₹{toBigNumberString(bill.disbursedAmount)}</p>
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded ml-2 ${bill.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded ml-2 ${bill.isApproved ? 'bg-green-700 text-white' : 'bg-yellow-500 text-white'}`}>
                     {bill.isApproved ? 'Approved' : 'Pending'}
                   </span>
                 </div>
-                <a href={`https://ipfs.io/ipfs/${bill.billHash}`} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-blue-600 hover:underline text-xs">
+                <a href={`https://ipfs.io/ipfs/${bill.billHash}`} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-green-700 hover:underline text-xs">
                   View Bill →
                 </a>
               </div>
@@ -217,31 +216,30 @@ function LoanCard({ loanId }: { loanId: number }) {
         </div>
       )}
 
-      {/* Upload Bill Section */}
       {isSanctioned && (
         <>
           {!showUpload ? (
-            <button onClick={() => setShowUpload(true)} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold text-sm">
+            <button onClick={() => setShowUpload(true)} className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800 font-semibold text-sm">
               📄 Upload Bill
             </button>
           ) : (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold text-black mb-3">Upload New Bill</h3>
+            <div className="border rounded-lg p-4 bg-green-50">
+              <h3 className="font-semibold text-slate-900 mb-3">Upload New Bill</h3>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-black mb-1">Bill Document</label>
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} className="w-full p-2 border rounded text-sm text-black" />
-                  {billFile && <p className="text-xs text-gray-600 mt-1">Selected: {billFile.name}</p>}
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Bill Document</label>
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileChange} className="w-full p-2 border rounded text-sm text-slate-900" />
+                  {billFile && <p className="text-xs text-slate-700 mt-1">Selected: {billFile.name}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-black mb-1">Requested Amount (₹)</label>
-                  <input type="number" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} placeholder="Enter amount" className="w-full p-2 border rounded text-sm text-black" />
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Requested Amount (₹)</label>
+                  <input type="number" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} placeholder="Enter amount" className="w-full p-2 border rounded text-sm text-slate-900" />
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={handleUploadBill} disabled={uploading} className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold text-sm">
+                  <button onClick={handleUploadBill} disabled={uploading} className="flex-1 bg-green-700 text-white py-2 rounded-lg hover:bg-green-800 disabled:bg-slate-400 font-semibold text-sm">
                     {uploading ? 'Uploading...' : 'Submit Bill'}
                   </button>
                   <button
@@ -264,7 +262,7 @@ function LoanCard({ loanId }: { loanId: number }) {
 
       {status === 'IN_PROGRESS' && <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">⏳ Loan is being processed by the bank</div>}
 
-      {status === 'UNDER_REVIEW' && <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">🔍 Loan is under review by the bank officer</div>}
+      {status === 'UNDER_REVIEW' && <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">🔍 Loan is under review by the bank officer</div>}
 
       {status === 'REJECTED' && <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">❌ Loan application was rejected</div>}
     </div>
