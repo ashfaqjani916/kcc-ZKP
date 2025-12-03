@@ -86,8 +86,8 @@ export default function LoanApplication() {
 
   if (!address) {
     return (
-      <div className="max-w-md mx-auto p-6 border rounded-lg bg-yellow-50">
-        <p className="text-yellow-800">Please connect your wallet to apply for a loan</p>
+      <div className="max-w-md mx-auto p-6 border rounded-lg bg-green-50">
+        <p className="text-green-800">Please connect your wallet to apply for a loan</p>
       </div>
     )
   }
@@ -95,25 +95,25 @@ export default function LoanApplication() {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-4">
-        <h2 className="text-2xl font-bold text-black">Apply for KCC Loan</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Apply for KCC Loan</h2>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-black">Aadhaar Hash</label>
+          <label className="block text-sm font-medium mb-1 text-slate-900">Aadhaar Hash</label>
           <input
             type="text"
             placeholder="123456789012"
             value={formData.aadhaarHash}
             onChange={(e) => setFormData({ ...formData, aadhaarHash: e.target.value })}
-            className="w-full p-2 border rounded text-black"
+            className="w-full p-2 border rounded text-slate-900"
             required
             minLength={12}
             maxLength={12}
           />
-          <p className="text-xs text-gray-500 mt-1">12-digit Aadhaar number</p>
+          <p className="text-xs text-slate-500 mt-1">12-digit Aadhaar number</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-black">Land Ownership (acres)</label>
+          <label className="block text-sm font-medium mb-1 text-slate-900">Land Ownership (acres)</label>
           <input
             type="text"
             inputMode="numeric"
@@ -124,13 +124,13 @@ export default function LoanApplication() {
               const value = e.target.value.replace(/[^0-9]/g, '')
               setFormData({ ...formData, landOwnershipAcres: value })
             }}
-            className="w-full p-2 border rounded text-black"
+            className="w-full p-2 border rounded text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-black">Annual Income (₹)</label>
+          <label className="block text-sm font-medium mb-1 text-slate-900">Annual Income (₹)</label>
           <input
             type="text"
             inputMode="numeric"
@@ -141,13 +141,13 @@ export default function LoanApplication() {
               const value = e.target.value.replace(/[^0-9]/g, '')
               setFormData({ ...formData, annualIncome: value })
             }}
-            className="w-full p-2 border rounded text-black"
+            className="w-full p-2 border rounded text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-black">Requested Amount (₹)</label>
+          <label className="block text-sm font-medium mb-1 text-slate-900">Requested Amount (₹)</label>
           <input
             type="text"
             inputMode="numeric"
@@ -158,14 +158,14 @@ export default function LoanApplication() {
               const value = e.target.value.replace(/[^0-9]/g, '')
               setFormData({ ...formData, requestedAmount: value })
             }}
-            className="w-full p-2 border rounded text-black"
+            className="w-full p-2 border rounded text-slate-900"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1 text-black">Loan Category</label>
-          <select value={formData.loanCategory} onChange={(e) => setFormData({ ...formData, loanCategory: e.target.value })} className="w-full p-2 border rounded text-black">
+          <label className="block text-sm font-medium mb-1 text-slate-900">Loan Category</label>
+          <select value={formData.loanCategory} onChange={(e) => setFormData({ ...formData, loanCategory: e.target.value })} className="w-full p-2 border rounded text-slate-900">
             <option>Agriculture</option>
             <option>Equipment</option>
             <option>Seeds</option>
@@ -173,18 +173,18 @@ export default function LoanApplication() {
           </select>
         </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 disabled:bg-gray-400 font-semibold">
+        <button type="submit" disabled={loading} className="w-full bg-green-700 text-white p-3 rounded hover:bg-green-800 disabled:bg-slate-400 font-semibold">
           {loading ? 'Processing...' : 'Generate Proof & Apply'}
         </button>
 
         {status && (
-          <div className={`p-3 rounded text-sm ${status.includes('submitted') ? 'bg-green-50 text-green-800' : status.includes('Error') ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
+          <div className={`p-3 rounded text-sm ${status.includes('submitted') ? 'bg-green-50 text-green-800' : status.includes('Error') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
             {status}
           </div>
         )}
 
-        <div className="text-xs text-gray-500 border-t pt-4 space-y-1">
-          <p className="text-black">Eligibility criteria:</p>
+        <div className="text-xs text-slate-500 border-t pt-4 space-y-1">
+          <p className="text-slate-900">Eligibility criteria:</p>
           <ul className="list-disc list-inside ml-2">
             <li>Land ownership ≥ 3 acres</li>
             <li>Annual income ≤ ₹300,000</li>
