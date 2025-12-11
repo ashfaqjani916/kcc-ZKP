@@ -23,15 +23,15 @@ export default function AuditorDashboard() {
   const { contract } = useContract(CONTRACTS.KCCLoanManager)
   const { data: currentAuditor } = useContractRead(contract, 'auditor')
   const { data: loansWithBills } = useContractRead(contract, 'getAllLoansWithBills')
-  const { mutateAsync: mintTokens } = useContractWrite(contract, 'mintTokens')
+  // const { mutateAsync: mintTokens } = useContractWrite(contract, 'mintTokens')
 
   const isAuditor = address && currentAuditor && address.toLowerCase() === currentAuditor.toLowerCase()
 
   const loanIdsWithBills = (loansWithBills as BigNumberish[]) || []
   const totalLoansWithBills = loanIdsWithBills.length
 
-  const [mintAmount, setMintAmount] = useState('')
-  const [minting, setMinting] = useState(false)
+  // const [mintAmount, setMintAmount] = useState('')
+  // const [minting, setMinting] = useState(false)
 
   if (!address) {
     return (
@@ -119,7 +119,7 @@ export default function AuditorDashboard() {
           )}
         </div>
 
-        {isAuditor && (
+        {/* {isAuditor && (
           <div className="max-w-md mx-auto bg-white rounded-xl shadow p-6">
             <h2 className="text-lg font-bold mb-2 text-slate-900">Mint Tokens To Self</h2>
             <p className="text-sm text-slate-600 mb-4">Mint credit tokens for disbursement or testing.</p>
@@ -154,7 +154,7 @@ export default function AuditorDashboard() {
               </button>
             </form>
           </div>
-        )}
+        )} */}
 
         <div className="bg-green-50 rounded-xl p-6 border border-green-200">
           <h3 className="font-bold text-green-900 mb-3">Auditor Workflow</h3>
