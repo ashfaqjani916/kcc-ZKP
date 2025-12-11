@@ -29,7 +29,7 @@ export default function BankDashboard() {
   const { mutateAsync: reviewLoan } = useContractWrite(contract, 'reviewLoan')
   const { mutateAsync: sanctionLoan } = useContractWrite(contract, 'sanctionLoan')
   const { mutateAsync: rejectLoan } = useContractWrite(contract, 'rejectLoan')
-  const { mutateAsync: disburseAmount } = useContractWrite(contract, 'disburseAmount')
+  // const { mutateAsync: disburseAmount } = useContractWrite(contract, 'disburseAmount')
 
   const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
   const [sanctionAmount, setSanctionAmount] = useState('')
@@ -83,9 +83,13 @@ export default function BankDashboard() {
   const handleDisburseAmount = async (loanId: number, amount: string, farmerAddress: string) => {
     if (!confirm(`Burn ${amount} tokens for Loan #${loanId}?`)) return
 
+    if (farmerAddress) {
+      console.log('status ok')
+    }
+
     setLoading(`disburse-${loanId}`)
     try {
-      await disburseAmount({ args: [amount, farmerAddress, loanId] })
+      // await disburseAmount({ args: [amount, farmerAddress, loanId] })
       alert(`Burned ${amount} tokens for Loan #${loanId}`)
       setDisbursedLoans((prev) => [...prev, loanId])
     } finally {
